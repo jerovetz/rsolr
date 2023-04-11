@@ -1,0 +1,8 @@
+[package]
+name = "rsc"
+version = "0.1.0"
+edition = "2021"
+authors = "Gyorgy Jerovetz <jerovetz@comlions.net>"
+description = "A Solr client for Rust."
+
+[dependencies]
