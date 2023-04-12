@@ -11,12 +11,16 @@ env:
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
-
     steps:
     - uses: actions/checkout@v3
     - name: Build
       run: cargo build --verbose
+    - name: Start Solr
+      runs:
+        using: docker
+        image: Dockerfile
+    - name: Provision Solr
+      run: cargo run-script solr-provision
     - name: Run tests
       run: cargo test --verbose
