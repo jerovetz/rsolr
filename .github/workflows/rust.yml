@@ -8,12 +8,14 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
-  SOLR_HOST: http://solr:8983
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    container: ubuntu
+    container:
+      image: rust
+      env:
+        SOLR_HOST: http://solr:8983
     services:
       solr:
         image: solr:8
