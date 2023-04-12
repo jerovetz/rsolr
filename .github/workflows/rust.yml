@@ -8,19 +8,18 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
+  SOLR_HOST: http://127.0.0.1:8983
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    container:
-      image: rust
-      env:
-        SOLR_HOST: http://solr:8983
     services:
       solr:
         image: solr:8
         ports:
           - 8983:8983
+        options:
+          name: rsc_solr
     steps:
     - uses: actions/checkout@v3
     - name: Build
@@ -28,6 +27,6 @@ jobs:
     - name: Provision Solr
       run: |
        cargo install cargo-run-script
-       cargo run-script solr-provision
+       cargo run-script solr-build-provision
     - name: Run tests
       run: cargo test --verbose
