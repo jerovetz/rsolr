@@ -1,7 +1,6 @@
 use rsc::Client;
 use reqwest::blocking::Client as HttpClient;
 use reqwest::header::CONTENT_TYPE;
-use dotenv::dotenv;
 
 #[test]
 fn test_hello() {
@@ -20,7 +19,6 @@ fn empty_collection(host : &str) -> Result<(), reqwest::Error> {
 
 #[test]
 fn test_query_all() -> Result<(), reqwest::Error> {
-    dotenv().ok();
     let collection = "default";
     let host = "http://127.0.0.1:8983";
     empty_collection(host).ok();
