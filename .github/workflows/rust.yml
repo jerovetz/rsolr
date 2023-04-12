@@ -18,8 +18,7 @@ jobs:
         image: solr:8
         ports:
         - 8983:8983
-        options:
-        - name: rsc_solr
+        options: --name rsc_solr
     steps:
     - uses: actions/checkout@v3
     - name: Build
