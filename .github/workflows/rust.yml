@@ -8,7 +8,6 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
-  SOLR_HOST: http://127.0.0.1:8983
 
 jobs:
   build:
@@ -26,6 +25,6 @@ jobs:
     - name: Provision Solr
       run: |
        cargo install cargo-run-script
-       cargo run-script solr-build-provision
+       cargo run-script solr-provision
     - name: Run tests
       run: cargo test --verbose
