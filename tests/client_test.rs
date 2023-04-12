@@ -1,7 +1,8 @@
-use std::error::Error;
 use rsc::Client;
 use reqwest::blocking::Client as HttpClient;
 use reqwest::header::CONTENT_TYPE;
+use dotenv::dotenv;
+use std::env;
 
 #[test]
 fn test_hello() {
@@ -9,19 +10,21 @@ fn test_hello() {
     assert_eq!(s, "Hello")
 }
 
-fn empty_collection(host : &str) {
+fn empty_collection(host : &str) -> Result<(), reqwest::Error> {
     let http_client = HttpClient::new();
     http_client
         .post(format!("{}{}", host, "/solr/default/update?stream.body=<delete><query>*:*</query></delete>&commit=true"))
         .header(CONTENT_TYPE, "application/json")
-        .send();
+        .send()?;
+    Ok(())
 }
 
 #[test]
 fn test_query_all() -> Result<(), reqwest::Error> {
+    dotenv().ok();
     let collection = "default";
-    let host = "http://localhost:8983";
-    empty_collection(host);
+    let host = &*env::var("SOLR_HOST").unwrap();
+    empty_collection(host).ok();
 
     let http_client = HttpClient::new();
     let data = r#"{"egerke": "okapi"}"#;

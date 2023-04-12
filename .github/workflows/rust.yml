@@ -8,6 +8,7 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
+  SOLR_HOST: http://solr:8983
 
 jobs:
   build:
