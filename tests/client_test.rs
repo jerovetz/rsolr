@@ -18,7 +18,7 @@ fn empty_collection(host : &str) -> Result<(), reqwest::Error> {
 }
 
 #[test]
-fn test_query_all() -> Result<(), reqwest::Error> {
+fn test_query_all_one_document_value_returned() -> Result<(), reqwest::Error> {
     let collection = "default";
     let host = "http://127.0.0.1:8983";
     empty_collection(host).ok();
