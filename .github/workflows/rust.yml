@@ -23,7 +23,7 @@ jobs:
       run: cargo build --verbose
     - name: Provision Solr
       run: |
-        cargo run-script solr-provision
-        cargo install cargo-run-script
+       cargo run-script solr-provision
+       cargo install cargo-run-script
     - name: Run tests
       run: cargo test --verbose
