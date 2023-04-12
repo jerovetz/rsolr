@@ -8,11 +8,12 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
-  SOLR_HOST: http://127.0.0.1:8983
+  SOLR_HOST: http://solr:8983
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    container: ubuntu
     services:
       solr:
         image: solr:8
