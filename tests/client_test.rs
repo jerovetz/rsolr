@@ -1,4 +1,4 @@
-use rsc::client::Client;
+use rsc::Client;
 
 #[test]
 fn test_ping() {
