@@ -6,15 +6,10 @@ pub struct Client {
 }
 
 impl Client {
-    pub fn hello() -> &'static str
-    {
-        "Hello"
-    }
-
-    pub fn query_all(&self) -> serde_json::Value {
+    pub fn query(&self, query: &str) -> serde_json::Value {
         let http_client = HttpClient::new();
         let raw_response = http_client
-            .get(format!("{}/solr/{}/select?q=*%3A*", self.host, self.collection))
+            .get(format!("{}/solr/{}/select?q={}", self.host, self.collection, query))
             .send().unwrap();
 
         raw_response.json::<serde_json::Value>().unwrap()
