@@ -1,19 +1,23 @@
 use std::error::Error;
-use std::fmt::{Debug, Display, Formatter, Result as FmtResult};
+use std::fmt::{Debug, Display, Formatter};
 
 pub struct RSCError {
     pub source: Box<dyn Error>,
 }
 
 impl Debug for RSCError {
-    fn fmt(&self, _f: &mut Formatter<'_>) -> FmtResult {
-        todo!()
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), std::fmt::Error> {
+        let mut builder = f.debug_struct("error:RSCError");
+        builder.field("source", &self.source());
+        builder.finish()
     }
 }
 
 impl Display for RSCError {
-    fn fmt(&self, _f: &mut Formatter<'_>) -> FmtResult {
-        todo!()
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), std::fmt::Error> {
+        let mut builder = f.debug_struct("error:RSCError");
+        builder.field("source", &self.source());
+        builder.finish()
     }
 }
 
