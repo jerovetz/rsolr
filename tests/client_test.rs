@@ -1,6 +1,7 @@
 use rsc::Client;
 use reqwest::blocking::Client as HttpClient;
 use reqwest::header::CONTENT_TYPE;
+use std::error::Error;
 
 fn empty_collection(host : &str) -> Result<(), reqwest::Error> {
     let http_client = HttpClient::new();
@@ -29,7 +30,17 @@ fn test_query_document_value_returned() -> Result<(), reqwest::Error> {
 
     let client = Client::new(host, collection);
     let result = client.query("*:*");
-    assert_eq!(result.get(0).unwrap().get("egerke").unwrap().get(0).unwrap(), "okapi");
+    assert_eq!(result.unwrap().get(0).unwrap().get("egerke").unwrap().get(0).unwrap(), "okapi");
 
     Ok(())
+}
+
+#[test]
+fn test_query_responds_original_error_if_network_error() {
+    let collection = "default";
+    let host = "http://not_existing_host:8983";
+    let result = Client::new(host, collection).query("*:*");
+    assert!(result.is_err());
+    let original_error_message = result.err().expect("No Error").source().expect("no source error").to_string();
+    assert_eq!(original_error_message.contains("dns error"), true)
 }

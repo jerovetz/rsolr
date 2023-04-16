@@ -6,14 +6,18 @@ pub struct Client {
 }
 
 impl Client {
-    pub fn query(&self, query: &str) -> serde_json::Value {
+    pub fn query(&self, query: &str) -> Result<serde_json::Value, reqwest::Error> {
         let http_client = HttpClient::new();
-        let raw_response = http_client
+        let solr_result =  http_client
             .get(format!("{}/solr/{}/select?q={}", self.host, self.collection, query))
-            .send().unwrap();
+            .send();
+        let raw_response = match solr_result {
+            Ok(response) => response,
+            Err(e) => return Err(e),
+        };
 
-        raw_response.json::<serde_json::Value>().unwrap()
-            .get("response").unwrap().get("docs").unwrap().clone()
+        Ok(raw_response.json::<serde_json::Value>().unwrap()
+            .get("response").unwrap().get("docs").unwrap().clone())
     }
 
     pub fn new(url : &str, collection : &str) -> Client {
