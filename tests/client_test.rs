@@ -36,11 +36,13 @@ fn test_query_document_value_returned() -> Result<(), reqwest::Error> {
 }
 
 #[test]
-fn test_query_responds_original_error_if_network_error() {
+fn test_query_responds_rsc_error_with_embedded_network_error() {
     let collection = "default";
     let host = "http://not_existing_host:8983";
     let result = Client::new(host, collection).query("*:*");
     assert!(result.is_err());
-    let original_error_message = result.err().expect("No Error").source().expect("no source error").to_string();
+    let error = result.err().expect("No Error");
+    let original_error_message = error.source().expect("no source error").to_string();
+    assert_eq!(error.kind(), "RSCError");
     assert_eq!(original_error_message.contains("dns error"), true)
 }
