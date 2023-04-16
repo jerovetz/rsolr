@@ -29,7 +29,7 @@ fn test_query_document_value_returned() -> Result<(), reqwest::Error> {
 
     let client = Client::new(host, collection);
     let result = client.query("*:*");
-    assert!(result.get(0).unwrap().get("egerke").unwrap().get(0).unwrap() == "okapi");
+    assert_eq!(result.get(0).unwrap().get("egerke").unwrap().get(0).unwrap(), "okapi");
 
     Ok(())
 }
