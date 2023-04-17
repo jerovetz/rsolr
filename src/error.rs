@@ -52,8 +52,8 @@ impl RSCError {
     }
 
     pub fn message(&self) -> Option<&str> {
-        let szar = &(self.message.as_ref().unwrap())[..];
-        Some(szar)
+        let static_message = Box::leak(self.message.as_ref().unwrap().clone().into_boxed_str());
+        Some(static_message)
     }
 
 

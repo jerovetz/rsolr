@@ -28,12 +28,11 @@ impl Client {
             return Err(RSCError { source: None, status: Some(raw_response.status()), message: None })
         };
 
-        let response_body = raw_response.json::<Value>().unwrap();
+        let response_body: Value  = raw_response.json::<Value>().unwrap();
 
         if response_status == StatusCode::BAD_REQUEST {
-            let fasz= response_body.get("error").unwrap().get("msg").unwrap().clone();
-            let local = fasz.to_string();
-            return Err(RSCError { source: None, status: Some(response_status), message: Some(local) })
+            let message_string = response_body.get("error").unwrap().get("msg").unwrap().to_string();
+            return Err(RSCError { source: None, status: Some(response_status), message: Some(message_string) })
         }
         Ok(response_body
             .get("response").unwrap().get("docs").unwrap().clone())
