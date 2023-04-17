@@ -1,6 +1,7 @@
-mod error;
+pub mod error;
 
 use reqwest::blocking::Client as HttpClient;
+use reqwest::StatusCode;
 use crate::error::RSCError;
 
 pub struct Client {
@@ -9,6 +10,7 @@ pub struct Client {
 }
 
 impl Client {
+
     pub fn query(&self, query: &str) -> Result<serde_json::Value, RSCError> {
         let http_client = HttpClient::new();
         let solr_result =  http_client
@@ -16,7 +18,11 @@ impl Client {
             .send();
         let raw_response = match solr_result {
             Ok(response) => response,
-            Err(e) => return Err(RSCError { source: Box::new(e) }),
+            Err(e) => return Err(RSCError { source: Some(Box::new(e)), status: None }),
+        };
+
+        if raw_response.status() == StatusCode::NOT_FOUND {
+            return Err(RSCError { source: None, status: Some(raw_response.status()) })
         };
 
         Ok(raw_response.json::<serde_json::Value>().unwrap()

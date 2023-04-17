@@ -2,6 +2,7 @@ use rsc::Client;
 use reqwest::blocking::Client as HttpClient;
 use reqwest::header::CONTENT_TYPE;
 use std::error::Error;
+use reqwest::StatusCode;
 
 fn empty_collection(host : &str) -> Result<(), reqwest::Error> {
     let http_client = HttpClient::new();
@@ -43,6 +44,18 @@ fn test_query_responds_rsc_error_with_embedded_network_error() {
     assert!(result.is_err());
     let error = result.err().expect("No Error");
     let original_error_message = error.source().expect("no source error").to_string();
-    assert_eq!(error.kind(), "RSCError");
+    matches!(error.kind(), rsc::error::ErrorKind::Network);
     assert_eq!(original_error_message.contains("dns error"), true)
+}
+
+#[test]
+fn test_query_responds_rsc_error_with_embedded_no_collection_error() {
+    let collection = "not_existing_collection";
+    let host = "http://localhost:8983";
+    let result = Client::new(host, collection).query("*:*");
+    assert!(result.is_err());
+    let error = result.err().expect("No Error");
+    assert_eq!(error.status().unwrap(), StatusCode::NOT_FOUND);
+    matches!(error.kind(), rsc::error::ErrorKind::NotFound);
+    assert!(error.source().is_none());
 }

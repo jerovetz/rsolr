@@ -1,8 +1,10 @@
 use std::error::Error;
 use std::fmt::{Debug, Display, Formatter};
+use reqwest::StatusCode;
 
 pub struct RSCError {
-    pub source: Box<dyn Error>,
+    pub source: Option<Box<dyn Error>>,
+    pub status: Option<StatusCode>,
 }
 
 impl Debug for RSCError {
@@ -23,12 +25,27 @@ impl Display for RSCError {
 
 impl Error for RSCError {
     fn source(&self) -> Option<&(dyn Error + 'static)> {
-        Some(&*self.source)
+        return match &self.source {
+            Some(source) => Some(&**source),
+            None => None
+        };
     }
 }
 
+pub enum ErrorKind {
+    Network,
+    NotFound,
+}
+
 impl RSCError {
-    pub fn kind(&self) -> &str {
-        "RSCError"
+    pub fn kind(&self) -> ErrorKind {
+        if self.source.is_some() {
+           return ErrorKind::Network
+        }
+        ErrorKind::NotFound
+    }
+
+    pub fn status(&self) -> Option<StatusCode> {
+        self.status
     }
 }
