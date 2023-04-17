@@ -32,7 +32,7 @@ impl<'a> Client<'a> {
 
         if response_status == StatusCode::BAD_REQUEST {
             let message_string = response_body.get("error").unwrap().get("msg").unwrap().to_string();
-            return Err(RSCError { source: None, status: Some(response_status), message: Some(message_string) })
+            return Err(RSCError { source: None, status: Some(response_status), message: Some(message_string.replace("\"", "")) })
         }
         Ok(response_body
             .get("response").unwrap().get("docs").unwrap().clone())

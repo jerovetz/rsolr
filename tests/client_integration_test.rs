@@ -70,5 +70,5 @@ fn test_query_responds_rsc_error_with_solr_problem_if_query_is_bad() {
     assert_eq!(error.status().unwrap(), StatusCode::BAD_REQUEST);
     matches!(error.kind(), rsc::error::ErrorKind::SolrSyntax);
     assert!(error.source().is_none());
-    assert_eq!(error.message(), Some("\"undefined field bad\""));
+    assert_eq!(error.message(), Some("undefined field bad"));
 }
