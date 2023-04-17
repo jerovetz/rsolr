@@ -5,12 +5,12 @@ use reqwest::StatusCode;
 use serde_json::Value;
 use crate::error::RSCError;
 
-pub struct Client {
-    host: String,
-    collection: String
+pub struct Client<'a> {
+    host: &'a str,
+    collection: &'a str,
 }
 
-impl Client {
+impl<'a> Client<'a> {
 
     pub fn query(&self, query: &str) -> Result<Value, RSCError> {
         let http_client = HttpClient::new();
@@ -38,9 +38,7 @@ impl Client {
             .get("response").unwrap().get("docs").unwrap().clone())
     }
 
-    pub fn new(url : &str, collection : &str) -> Client {
-        let host = String::from(url);
-        let collection = String::from(collection);
+    pub fn new(host : &'a str, collection : &'a str) -> Client<'a> {
         Client {
             host,
             collection
