@@ -5,6 +5,7 @@ use reqwest::StatusCode;
 pub struct RSCError {
     pub source: Option<Box<dyn Error>>,
     pub status: Option<StatusCode>,
+    pub message: Option<String>
 }
 
 impl Debug for RSCError {
@@ -35,6 +36,7 @@ impl Error for RSCError {
 pub enum ErrorKind {
     Network,
     NotFound,
+    SolrSyntax
 }
 
 impl RSCError {
@@ -48,4 +50,11 @@ impl RSCError {
     pub fn status(&self) -> Option<StatusCode> {
         self.status
     }
+
+    pub fn message(&self) -> Option<&str> {
+        let szar = &(self.message.as_ref().unwrap())[..];
+        Some(szar)
+    }
+
+
 }

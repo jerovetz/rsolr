@@ -59,3 +59,16 @@ fn test_query_responds_rsc_error_with_embedded_no_collection_error() {
     matches!(error.kind(), rsc::error::ErrorKind::NotFound);
     assert!(error.source().is_none());
 }
+
+#[test]
+fn test_query_responds_rsc_error_with_solr_problem_if_query_is_bad() {
+    let collection = "default";
+    let host = "http://localhost:8983";
+    let result = Client::new(host, collection).query("bad: query");
+    assert!(result.is_err());
+    let error = result.err().expect("No Error");
+    assert_eq!(error.status().unwrap(), StatusCode::BAD_REQUEST);
+    matches!(error.kind(), rsc::error::ErrorKind::SolrSyntax);
+    assert!(error.source().is_none());
+    assert_eq!(error.message(), Some("\"undefined field bad\""));
+}
