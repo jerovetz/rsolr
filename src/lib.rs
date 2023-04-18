@@ -26,19 +26,27 @@ impl<'a> Client<'a> {
             Err(e) => return Err(RSCError { source: Some(Box::new(e)), status: None, message: None }),
         };
         let response_status = raw_response.status();
-
         if response_status == StatusCode::NOT_FOUND {
             return Err(RSCError { source: None, status: Some(response_status), message: None })
         };
 
-        let response_body: Value  = raw_response.json::<Value>().unwrap();
-
         if response_status != StatusCode::OK {
-            let message_string = response_body.get("error").unwrap().get("msg").unwrap().to_string();
+            let message_string = match raw_response.json::<Value>() {
+                Ok(r) => r["error"]["msg"].to_string(),
+                Err(e) => {
+                    return Err(
+                        RSCError {
+                            source: Some(Box::new(e)),
+                            status: Some(response_status),
+                            message: Some(String::from("Unparseable body."))
+                        })
+                }
+            };
+
             return Err(RSCError { source: None, status: Some(response_status), message: Some(message_string.replace("\"", "")) })
         }
 
-        Ok(response_body
+        Ok(raw_response.json::<Value>().unwrap()
             .get("response").unwrap().get("docs").unwrap().clone())
     }
 
@@ -52,7 +60,6 @@ impl<'a> Client<'a> {
 
 #[cfg(test)]
 mod tests {
-    use std::error::Error;
     use super::*;
 
     #[test]
@@ -72,7 +79,25 @@ mod tests {
         assert_eq!(error.status().unwrap(), StatusCode::INTERNAL_SERVER_ERROR);
 
         assert!(matches!(error.kind(), error::ErrorKind::Other));
-        assert!(error.source().is_none());
+    }
+
+    #[test]
+    fn test_query_responds_rsc_error_with_raw_text_body_and_status_code_if_no_standard_message() {
+        let ctx = HttpClient::new_context();
+        ctx.expect().returning(|| {
+            let mut mock = HttpClient::default();
+            mock.expect_get().returning(|_| Ok(reqwest::blocking::Response::from(http::response::Builder::new().status(500).body(r#"some unparseable thing"#).unwrap())));
+            mock
+        });
+
+        let collection = "default";
+        let host = "http://localhost:8983";
+        let result = Client::new(host, collection).query("bad: query");
+        assert!(result.is_err());
+        let error = result.err().expect("No Error");
+        assert_eq!(error.status().unwrap(), StatusCode::INTERNAL_SERVER_ERROR);
+
+        assert!(matches!(error.kind(), error::ErrorKind::Other));
     }
 
 }

@@ -42,7 +42,7 @@ pub enum ErrorKind {
 
 impl RSCError {
     pub fn kind(&self) -> ErrorKind {
-        if self.source.is_some() {
+        if self.source.is_some() && self.status.is_none() {
            return ErrorKind::Network
         }
 
