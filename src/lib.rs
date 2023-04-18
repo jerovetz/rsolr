@@ -1,6 +1,7 @@
 pub mod error;
+mod http_client;
 
-use reqwest::blocking::Client as HttpClient;
+use http_client::HttpClient;
 use reqwest::StatusCode;
 use serde_json::Value;
 use crate::error::RSCError;
@@ -15,14 +16,12 @@ impl<'a> Client<'a> {
     pub fn query(&self, query: &str) -> Result<Value, RSCError> {
         let http_client = HttpClient::new();
         let solr_result =  http_client
-            .get(format!("{}/solr/{}/select?q={}", self.host, self.collection, query))
-            .send();
+            .get(&query, &self.host, &self.collection);
         let raw_response = match solr_result {
             Ok(response) => response,
             Err(e) => return Err(RSCError { source: Some(Box::new(e)), status: None, message: None }),
         };
         let response_status = raw_response.status();
-
 
         if response_status == StatusCode::NOT_FOUND {
             return Err(RSCError { source: None, status: Some(raw_response.status()), message: None })
@@ -38,8 +37,8 @@ impl<'a> Client<'a> {
             .get("response").unwrap().get("docs").unwrap().clone())
     }
 
-    pub fn new(host : &'a str, collection : &'a str) -> Client<'a> {
-        Client {
+    pub fn new(host : &'a str, collection : &'a str) -> Self {
+        Self {
             host,
             collection
         }
