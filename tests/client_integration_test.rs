@@ -32,7 +32,7 @@ fn test_query_document_value_returned() -> Result<(), reqwest::Error> {
     let client = Client::new(host, collection);
     let result = client.query("*:*");
     assert_eq!(result.unwrap().get(0).unwrap().get("egerke").unwrap().get(0).unwrap(), "okapi");
-
+    empty_collection(host).ok();
     Ok(())
 }
 
@@ -44,7 +44,7 @@ fn test_query_responds_rsc_error_with_embedded_network_error() {
     assert!(result.is_err());
     let error = result.err().expect("No Error");
     let original_error_message = error.source().expect("no source error").to_string();
-    matches!(error.kind(), rsc::error::ErrorKind::Network);
+    assert!(matches!(error.kind(), rsc::error::ErrorKind::Network));
     assert_eq!(original_error_message.contains("dns error"), true)
 }
 
@@ -56,7 +56,7 @@ fn test_query_responds_rsc_error_with_embedded_no_collection_error() {
     assert!(result.is_err());
     let error = result.err().expect("No Error");
     assert_eq!(error.status().unwrap(), StatusCode::NOT_FOUND);
-    matches!(error.kind(), rsc::error::ErrorKind::NotFound);
+    assert!(matches!(error.kind(), rsc::error::ErrorKind::NotFound));
     assert!(error.source().is_none());
 }
 

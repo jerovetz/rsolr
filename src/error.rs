@@ -36,7 +36,8 @@ impl Error for RSCError {
 pub enum ErrorKind {
     Network,
     NotFound,
-    SolrSyntax
+    SolrSyntax,
+    Other
 }
 
 impl RSCError {
@@ -44,7 +45,12 @@ impl RSCError {
         if self.source.is_some() {
            return ErrorKind::Network
         }
-        ErrorKind::NotFound
+
+        if self.status.unwrap() == StatusCode::NOT_FOUND {
+            return ErrorKind::NotFound
+        }
+
+        ErrorKind::Other
     }
 
     pub fn status(&self) -> Option<StatusCode> {

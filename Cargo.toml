@@ -6,8 +6,13 @@ authors = ["Gyorgy Jerovetz <jerovetz@comlions.net>"]
 description = "A Solr client for Rust."
 
 [dependencies]
+http = "0.2.9"
+mockall_double = "0.3.0"
 reqwest = { version = "0.11.16", features = ["blocking", "json"] }
 serde_json = "1.0.95"
+
+[dev-dependencies]
+mockall = "0.11.4"
 
 [package.metadata.scripts]
 solr-start = "docker run -d --rm --name rsc_solr -v solrdata:/var/solr -p 8983:8983 solr:8"
