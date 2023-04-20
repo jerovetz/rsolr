@@ -88,3 +88,21 @@ fn test_create_with_auto_commit_inserts_document_responds_nothing() {
     assert_eq!(result.unwrap()[0]["okapi"][0], "egerke");
     empty_collection(host).ok();
 }
+
+#[test]
+fn test_create_without_auto_commit_uploads_document_and_index_on_separated_commit_responds_nothing() {
+    let collection = "default";
+    let host = "http://localhost:8983";
+    empty_collection(host).ok();
+
+    let document : Value = serde_json::from_str(r#"{"okapi": "egerke"}"#).unwrap();
+    let client = Client::new(host,collection, AutoCommit::NO);
+    let _ = client.create(document);
+    let result = client.query("*:*");
+    assert_eq!(result.unwrap(), serde_json::from_str::<Value>("[]").unwrap());
+
+    let _ = client.commit();
+    let result = client.query("*:*");
+    assert_eq!(result.unwrap()[0]["okapi"][0], "egerke");
+    empty_collection(host).ok();
+}

@@ -26,11 +26,14 @@ impl HttpClient {
     }
 
     #[allow(dead_code)]
-    pub fn post(&self, query : &str, body: Value) -> Result<Response, Error> {
-        self.reqwest_client.post(query)
-            .header(CONTENT_TYPE, "application/json")
-            .json::<Value>(&body)
-            .send()
+    pub fn post(&self, query : &str, body: Option<Value>) -> Result<Response, Error> {
+        let request = self.reqwest_client.post(query);
+        match body {
+            Some(body) => request
+                .header(CONTENT_TYPE, "application/json")
+                .json::<Value>(&body).send(),
+            None => request.send()
+        }
     }
 }
 
