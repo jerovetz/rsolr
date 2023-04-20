@@ -3,6 +3,7 @@ use reqwest::blocking::Client as HttpClient;
 use reqwest::header::CONTENT_TYPE;
 use std::error::Error;
 use reqwest::StatusCode;
+use serde_json::Value;
 
 fn empty_collection(host : &str) -> Result<(), reqwest::Error> {
     let http_client = HttpClient::new();
@@ -21,7 +22,7 @@ fn test_query_document_value_returned() -> Result<(), reqwest::Error> {
 
     let http_client = HttpClient::new();
     let data = r#"{"egerke": "okapi"}"#;
-    let expected_documents : serde_json::Value = serde_json::from_str(data).unwrap();
+    let expected_documents : Value = serde_json::from_str(data).unwrap();
 
     http_client
         .post(format!("{}/solr/{}/update/json/docs?commit=true", host, collection))
@@ -71,4 +72,19 @@ fn test_query_responds_rsc_error_with_solr_problem_if_query_is_bad() {
     matches!(error.kind(), rsc::error::ErrorKind::SolrSyntax);
     assert!(error.source().is_none());
     assert_eq!(error.message(), Some("undefined field bad"));
+}
+
+#[test]
+fn test_create_inserts_document_responds_nothing() {
+    let collection = "default";
+    let host = "http://localhost:8983";
+    empty_collection(host).ok();
+
+    let document : Value = serde_json::from_str(r#"{"okapi": "egerke"}"#).unwrap();
+    let client = Client::new(host,collection);
+    let _ = client.create(&document);
+
+    let result = client.query("*:*");
+    assert_eq!(result.unwrap()[0]["okapi"][0], "egerke");
+    empty_collection(host).ok();
 }

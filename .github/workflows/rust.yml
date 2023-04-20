@@ -27,4 +27,4 @@ jobs:
        cargo install cargo-run-script
        cargo run-script solr-provision
     - name: Run tests
-      run: cargo test --verbose
+      run: cargo test --verbose -- --test-threads=1

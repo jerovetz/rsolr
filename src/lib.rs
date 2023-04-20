@@ -12,14 +12,13 @@ use crate::error::RSCError;
 pub struct Client<'a> {
     host: &'a str,
     collection: &'a str,
+    http_client: HttpClient,
 }
 
 impl<'a> Client<'a> {
 
     pub fn query(&self, query: &str) -> Result<Value, RSCError> {
-        let http_client = HttpClient::new();
-
-        let solr_result =  http_client
+        let solr_result =  self.http_client
             .get(&format!("{}/solr/{}/select?q={}", &self.host, &self.collection, &query));
 
         let raw_response = match solr_result {
@@ -54,10 +53,16 @@ impl<'a> Client<'a> {
             .get("response").unwrap().get("docs").unwrap().clone())
     }
 
+    pub fn create(&self, document: &Value) -> Result<(), RSCError> {
+        let _ = self.http_client.post(&format!("{}/solr/{}/update/json/docs?commit=true", self.host, self.collection), document);
+        Ok(())
+    }
+
     pub fn new(host : &'a str, collection : &'a str) -> Self {
         Self {
             host,
-            collection
+            collection,
+            http_client: HttpClient::new()
         }
     }
 }
