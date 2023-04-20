@@ -26,10 +26,10 @@ impl HttpClient {
     }
 
     #[allow(dead_code)]
-    pub fn post(&self, query : &str, body: &Value) -> Result<Response, Error> {
+    pub fn post(&self, query : &str, body: Value) -> Result<Response, Error> {
         self.reqwest_client.post(query)
             .header(CONTENT_TYPE, "application/json")
-            .json::<Value>(body)
+            .json::<Value>(&body)
             .send()
     }
 }

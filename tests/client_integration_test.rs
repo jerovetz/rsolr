@@ -82,7 +82,7 @@ fn test_create_inserts_document_responds_nothing() {
 
     let document : Value = serde_json::from_str(r#"{"okapi": "egerke"}"#).unwrap();
     let client = Client::new(host,collection);
-    let _ = client.create(&document);
+    let _ = client.create(document);
 
     let result = client.query("*:*");
     assert_eq!(result.unwrap()[0]["okapi"][0], "egerke");

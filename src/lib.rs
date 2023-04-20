@@ -53,7 +53,7 @@ impl<'a> Client<'a> {
             .get("response").unwrap().get("docs").unwrap().clone())
     }
 
-    pub fn create(&self, document: &Value) -> Result<(), RSCError> {
+    pub fn create(&self, document: Value) -> Result<(), RSCError> {
         let _ = self.http_client.post(&format!("{}/solr/{}/update/json/docs?commit=true", self.host, self.collection), document);
         Ok(())
     }
