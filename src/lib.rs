@@ -9,10 +9,16 @@ use reqwest::StatusCode;
 use serde_json::Value;
 use crate::error::RSCError;
 
+pub enum AutoCommit {
+    YES,
+    NO
+}
+
 pub struct Client<'a> {
     host: &'a str,
     collection: &'a str,
     http_client: HttpClient,
+    auto_commit: AutoCommit
 }
 
 impl<'a> Client<'a> {
@@ -54,15 +60,20 @@ impl<'a> Client<'a> {
     }
 
     pub fn create(&self, document: Value) -> Result<(), RSCError> {
-        let _ = self.http_client.post(&format!("{}/solr/{}/update/json/docs?commit=true", self.host, self.collection), document);
+        let auto_commit_parameter = match &self.auto_commit {
+            AutoCommit::YES => "?commit=true",
+            AutoCommit::NO => ""
+        };
+        let _ = self.http_client.post(&format!("{}/solr/{}/update/json/docs{}", self.host, self.collection, auto_commit_parameter), document);
         Ok(())
     }
 
-    pub fn new(host : &'a str, collection : &'a str) -> Self {
+    pub fn new(host : &'a str, collection : &'a str, auto_commit: AutoCommit) -> Self {
         Self {
             host,
             collection,
-            http_client: HttpClient::new()
+            http_client: HttpClient::new(),
+            auto_commit
         }
     }
 }
@@ -98,7 +109,7 @@ mod tests {
 
         let collection = "default";
         let host = "http://localhost:8983";
-        let result = Client::new(host, collection).query("bad: query");
+        let result = Client::new(host, collection, AutoCommit::NO).query("bad: query");
         assert!(result.is_err());
         let error = result.err().expect("No Error");
         assert_eq!(error.status().unwrap(), StatusCode::INTERNAL_SERVER_ERROR);
@@ -120,7 +131,7 @@ mod tests {
 
         let collection = "default";
         let host = "http://localhost:8983";
-        let result = Client::new(host, collection).query("bad: query");
+        let result = Client::new(host, collection, AutoCommit::NO).query("bad: query");
         assert!(result.is_err());
         let error = result.err().expect("No Error");
         assert_eq!(error.status().unwrap(), StatusCode::INTERNAL_SERVER_ERROR);
