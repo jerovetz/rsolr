@@ -64,8 +64,11 @@ impl<'a> Client<'a> {
             AutoCommit::YES => "?commit=true",
             AutoCommit::NO => ""
         };
-        let _ = self.http_client.post(&format!("{}/solr/{}/update/json/docs{}", self.host, self.collection, auto_commit_parameter), Some(document));
-        Ok(())
+        let response_or_error = self.http_client.post(&format!("{}/solr/{}/update/json/docs{}", self.host, self.collection, auto_commit_parameter), Some(document));
+        match response_or_error {
+            Ok(_) => Ok(()),
+            Err(e) => return Err(RSCError { source: Some(Box::new(e)), status: None, message: None }),
+        }
     }
 
     pub fn commit(&self) -> Result<(), RSCError> {

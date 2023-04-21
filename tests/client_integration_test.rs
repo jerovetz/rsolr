@@ -106,3 +106,15 @@ fn test_create_without_auto_commit_uploads_document_and_index_on_separated_commi
     assert_eq!(result.unwrap()[0]["okapi"][0], "egerke");
     empty_collection(host).ok();
 }
+
+#[test]
+fn test_create_responds_rsc_error_with_embedded_network_error() {
+    let collection = "default";
+    let host = "http://not_existing_host:8983";
+    let result = Client::new(host, collection, AutoCommit::NO).create(serde_json::from_str(r#"{"anything": "anything"}"#).unwrap());
+    assert!(result.is_err());
+    let error = result.err().expect("No Error");
+    let original_error_message = error.source().expect("no source error").to_string();
+    assert!(matches!(error.kind(), rsc::error::ErrorKind::Network));
+    assert_eq!(original_error_message.contains("dns error"), true)
+}
