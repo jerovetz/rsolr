@@ -1,6 +1,7 @@
 pub mod error;
 mod http_client;
 use mockall_double::double;
+use reqwest::blocking::Response;
 
 #[double]
 use http_client::HttpClient;
@@ -23,40 +24,38 @@ pub struct Client<'a> {
 
 impl<'a> Client<'a> {
 
+    fn handle_response(&self, status: StatusCode, raw_response: Response) -> Result<Value, RSCError> {
+        match status {
+            StatusCode::OK => Ok(raw_response.json::<Value>().unwrap()["response"]["docs"].clone()),
+            StatusCode::NOT_FOUND => return Err(RSCError { source: None, status: Some(StatusCode::NOT_FOUND), message: None }),
+            other_status => {
+                let body_text = raw_response.text().unwrap();
+                let message_string = match serde_json::from_str::<Value>(&body_text) {
+                    Ok(r) => r["error"]["msg"].to_string(),
+                    Err(e) => {
+                        return Err(
+                            RSCError {
+                                source: Some(Box::new(e)),
+                                status: Some(other_status),
+                                message: Some(body_text)
+                            })
+                    }
+                };
+                return Err(RSCError { source: None, status: Some(other_status), message: Some(message_string.replace("\"", "")) })
+            }
+        }
+    }
+
     pub fn query(&self, query: &str) -> Result<Value, RSCError> {
         let solr_result =  self.http_client
             .get(&format!("{}/solr/{}/select?q={}", &self.host, &self.collection, &query));
 
-        let raw_response = match solr_result {
+        let response = match solr_result {
             Ok(response) => response,
             Err(e) => return Err(RSCError { source: Some(Box::new(e)), status: None, message: None }),
         };
 
-        let response_status = raw_response.status();
-
-        if response_status == StatusCode::NOT_FOUND {
-            return Err(RSCError { source: None, status: Some(response_status), message: None })
-        };
-
-        if response_status != StatusCode::OK {
-            let body_text = raw_response.text().unwrap();
-            let message_string = match serde_json::from_str::<Value>(&body_text) {
-                Ok(r) => r["error"]["msg"].to_string(),
-                Err(e) => {
-                    return Err(
-                        RSCError {
-                            source: Some(Box::new(e)),
-                            status: Some(response_status),
-                            message: Some(body_text)
-                        })
-                }
-            };
-
-            return Err(RSCError { source: None, status: Some(response_status), message: Some(message_string.replace("\"", "")) })
-        }
-
-        Ok(raw_response.json::<Value>().unwrap()
-            .get("response").unwrap().get("docs").unwrap().clone())
+        self.handle_response(response.status(), response)
     }
 
     pub fn create(&self, document: Value) -> Result<(), RSCError> {
@@ -70,10 +69,7 @@ impl<'a> Client<'a> {
             Err(e) => return Err(RSCError { source: Some(Box::new(e)), status: None, message: None }),
         };
 
-        match response.status() {
-            StatusCode::NOT_FOUND => return Err(RSCError { source: None, status: Some(StatusCode::NOT_FOUND), message: None }),
-            _ => Ok(())
-        }
+        self.handle_response(response.status(), response).map(|_| { () })
     }
 
     pub fn commit(&self) -> Result<(), RSCError> {
@@ -128,14 +124,12 @@ mod tests {
         assert_eq!(error.status().unwrap(), StatusCode::INTERNAL_SERVER_ERROR);
         assert_eq!(error.message().unwrap(), "okapi");
         assert!(matches!(error.kind(), error::ErrorKind::Other));
-        ctx.checkpoint();
     }
 
     #[test]
     fn test_query_responds_rsc_error_with_raw_text_body_and_status_code_if_no_standard_message() {
         let _m = get_lock(&MTX);
         let ctx = HttpClient::new_context();
-        ctx.checkpoint();
         ctx.expect().returning(|| {
             let mut mock = HttpClient::default();
             mock.expect_get().returning(|_| Ok(reqwest::blocking::Response::from(http::response::Builder::new().status(500).body(r#"some unparseable thing"#).unwrap())));
@@ -145,6 +139,48 @@ mod tests {
         let collection = "default";
         let host = "http://localhost:8983";
         let result = Client::new(host, collection, AutoCommit::NO).query("bad: query");
+        assert!(result.is_err());
+        let error = result.err().expect("No Error");
+        assert_eq!(error.status().unwrap(), StatusCode::INTERNAL_SERVER_ERROR);
+        assert_eq!(error.message().unwrap(), "some unparseable thing");
+        assert!(matches!(error.kind(), error::ErrorKind::Other));
+    }
+
+    #[test]
+    fn test_create_responds_rsc_error_with_other_problem_if_dunno() {
+        let _m = get_lock(&MTX);
+        let ctx = HttpClient::new_context();
+        ctx.expect().returning(|| {
+            let mut mock = HttpClient::default();
+            mock.expect_post().returning(|_, _| Ok(reqwest::blocking::Response::from(http::response::Builder::new().status(500).body(r#"{"error": {"code": 500, "msg": "okapi"}}"#).unwrap())));
+            mock
+        });
+
+        let collection = "default";
+        let host = "http://localhost:8983";
+        let result = Client::new(host, collection, AutoCommit::NO)
+            .create(serde_json::from_str(r#"{"anything": "anything"}"#).unwrap());
+        assert!(result.is_err());
+        let error = result.err().expect("No Error");
+        assert_eq!(error.status().unwrap(), StatusCode::INTERNAL_SERVER_ERROR);
+        assert_eq!(error.message().unwrap(), "okapi");
+        assert!(matches!(error.kind(), error::ErrorKind::Other));
+    }
+
+    #[test]
+    fn test_create_responds_rsc_error_with_raw_text_body_and_status_code_if_no_standard_message() {
+        let _m = get_lock(&MTX);
+        let ctx = HttpClient::new_context();
+        ctx.expect().returning(|| {
+            let mut mock = HttpClient::default();
+            mock.expect_post().returning(|_, _| Ok(reqwest::blocking::Response::from(http::response::Builder::new().status(500).body(r#"some unparseable thing"#).unwrap())));
+            mock
+        });
+
+        let collection = "default";
+        let host = "http://localhost:8983";
+        let result = Client::new(host, collection, AutoCommit::NO)
+            .create(serde_json::from_str(r#"{"anything": "anything"}"#).unwrap());
         assert!(result.is_err());
         let error = result.err().expect("No Error");
         assert_eq!(error.status().unwrap(), StatusCode::INTERNAL_SERVER_ERROR);
