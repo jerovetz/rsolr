@@ -65,9 +65,14 @@ impl<'a> Client<'a> {
             AutoCommit::NO => ""
         };
         let response_or_error = self.http_client.post(&format!("{}/solr/{}/update/json/docs{}", self.host, self.collection, auto_commit_parameter), Some(document));
-        match response_or_error {
-            Ok(_) => Ok(()),
+        let response = match response_or_error {
+            Ok(r) => r,
             Err(e) => return Err(RSCError { source: Some(Box::new(e)), status: None, message: None }),
+        };
+
+        match response.status() {
+            StatusCode::NOT_FOUND => return Err(RSCError { source: None, status: Some(StatusCode::NOT_FOUND), message: None }),
+            _ => Ok(())
         }
     }
 
