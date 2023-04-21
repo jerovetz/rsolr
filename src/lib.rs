@@ -7,7 +7,7 @@ use reqwest::blocking::Response;
 use http_client::HttpClient;
 
 use reqwest::StatusCode;
-use serde_json::Value;
+use serde_json::{json, Value};
 use crate::error::RSCError;
 
 pub enum AutoCommit {
@@ -74,6 +74,19 @@ impl<'a> Client<'a> {
 
     pub fn commit(&self) -> Result<(), RSCError> {
         let _ = self.http_client.post(&format!("{}/solr/{}/update?commit=true", self.host, self.collection), None);
+        Ok(())
+    }
+
+    pub fn delete(&self, query: &str) -> Result<(), RSCError> {
+        let auto_commit_parameter = match &self.auto_commit {
+            AutoCommit::YES => "?commit=true",
+            AutoCommit::NO => ""
+        };
+        let delete_command = Some(json!({
+            "delete": { "query": query }
+        }));
+        let _ = self.http_client.post(&format!("{}/solr/{}/update/{}", self.host, self.collection, auto_commit_parameter), delete_command);
+
         Ok(())
     }
 

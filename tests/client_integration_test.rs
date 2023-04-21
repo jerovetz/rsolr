@@ -132,3 +132,63 @@ fn test_create_responds_rsc_error_with_embedded_no_collection_error() {
     assert!(matches!(error.kind(), rsc::error::ErrorKind::NotFound));
     assert!(error.source().is_none());
 }
+
+#[test]
+fn test_delete_deletes_docs() {
+    let collection = "default";
+    let host = "http://localhost:8983";
+    empty_collection(host).ok();
+    let client = Client::new(host, collection, AutoCommit::YES);
+    let _ =  client.create(serde_json::from_str(r#"{"okapi": "another egerke"}"#).unwrap());
+
+    let result = client
+        .delete("*:*");
+
+    assert!(result.is_ok());
+    let docs = client.query("*:*");
+    assert_eq!(docs.unwrap(), serde_json::from_str::<Value>("[]").unwrap());
+
+    empty_collection(host).ok();
+}
+
+#[test]
+fn test_delete_deletes_docs_specified_by_query() {
+    let collection = "default";
+    let host = "http://localhost:8983";
+    empty_collection(host).ok();
+    let client = Client::new(host, collection, AutoCommit::YES);
+    let _ =  client.create(serde_json::from_str(r#"{"okapi": "another egerke"}"#).unwrap());
+    let _ =  client.create(serde_json::from_str(r#"{"okapi2": "egerke"}"#).unwrap());
+
+    let result = client
+        .delete("okapi2: egerke");
+
+    assert!(result.is_ok());
+    let docs = client.query("*:*");
+    assert_eq!(docs.unwrap()[0]["okapi"][0], "another egerke");
+
+    empty_collection(host).ok();
+}
+
+#[test]
+fn test_without_autocommit_delete_deletes_docs_after_commit_specified_by_query() {
+    let collection = "default";
+    let host = "http://localhost:8983";
+    empty_collection(host).ok();
+    let client = Client::new(host, collection, AutoCommit::NO);
+    let _ =  client.create(serde_json::from_str(r#"{"okapi": "another egerke"}"#).unwrap());
+    let _ =  client.create(serde_json::from_str(r#"{"okapi2": "egerke"}"#).unwrap());
+    client.commit().ok();
+
+    client.delete("okapi: another egerke").ok();
+
+    let docs = client.query("*:*");
+    assert_eq!(docs.unwrap()[0]["okapi"][0], "another egerke");
+
+    client.commit().ok();
+
+    let docs = client.query("*:*");
+    assert_ne!(docs.unwrap()[0]["okapi"][0], "another egerke");
+
+    empty_collection(host).ok();
+}
