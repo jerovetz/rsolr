@@ -58,6 +58,18 @@ impl<'b> Command<'b> {
         self.handle_response(response)
     }
 
+    pub fn run_with_body(&'b self, body: Option<Value>) -> Result<Value, RSCError> {
+        println!("{:?}", self.generate_url_str());
+        let solr_result = HttpClient::new().post(self.generate_url_str(), body);
+
+        let response = match solr_result {
+            Ok(response) => response,
+            Err(e) => return Err(RSCError { source: Some(Box::new(e)), status: None, message: None }),
+        };
+
+        self.handle_response(response)
+    }
+
     fn handle_response(&self, response: Response) -> Result<Value, RSCError> {
         match response.status() {
             StatusCode::OK => Ok(response.json::<Value>().unwrap()["response"]["docs"].clone()),
@@ -88,6 +100,7 @@ mod tests {
     use std::sync::{Mutex, MutexGuard};
     use mockall::lazy_static;
     use mockall::predicate::eq;
+    use serde_json::json;
 
     lazy_static! {
         static ref MTX: Mutex<()> = Mutex::new(());
@@ -123,7 +136,7 @@ mod tests {
     }
 
     #[test]
-    fn test_run_calls_http_client_with_url() {
+    fn test_run_calls_get_with_url() {
         let _m = get_lock(&MTX);
 
         let ctx = HttpClient::new_context();
@@ -145,6 +158,33 @@ mod tests {
             .request_handler("select")
             .query("*:*")
             .run();
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap()[0]["success"], true);
+    }
+
+    #[test]
+    fn test_run_calls_post_with_url_and_body() {
+        let _m = get_lock(&MTX);
+
+        let ctx = HttpClient::new_context();
+        ctx.expect().returning(|| {
+            let mut mock = HttpClient::default();
+            mock.expect_post()
+                .withf(| url, body | url == "http://localhost:8983/solr/default/update%2Fjson%2Fdocs?commit=true" && *body == Some(json!({ "this is": "a document"})) )
+                .returning(|_, _| Ok(reqwest::blocking::Response::from(http::response::Builder::new()
+                    .status(200)
+                    .body(r#"{"response": {"docs": [{"success": true}]}}"#)
+                    .unwrap())));
+            mock
+        });
+
+        let collection = "default";
+        let host = "http://localhost:8983";
+        let mut command = Command::new(host, collection);
+        let result = command
+            .request_handler("update/json/docs")
+            .auto_commit()
+            .run_with_body(Some(json!({ "this is": "a document"})));
         assert!(result.is_ok());
         assert_eq!(result.unwrap()[0]["success"], true);
     }
