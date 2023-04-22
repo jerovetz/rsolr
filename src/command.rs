@@ -59,7 +59,6 @@ impl<'b> Command<'b> {
     }
 
     pub fn run_with_body(&'b self, body: Option<Value>) -> Result<Value, RSCError> {
-        println!("{:?}", self.generate_url_str());
         let solr_result = HttpClient::new().post(self.generate_url_str(), body);
 
         let response = match solr_result {
