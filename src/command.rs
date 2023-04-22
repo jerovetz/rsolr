@@ -1,9 +1,16 @@
+use http::StatusCode;
 use url;
+use mockall_double::double;
+use serde_json::Value;
+use crate::error::RSCError;
+
+#[double]
+use crate::http_client::HttpClient;
 
 pub struct Command<'b> {
     collection: &'b str,
     request_handler: &'b str,
-    url: url::Url
+    url: url::Url,
 }
 
 impl<'b> Command<'b> {
@@ -39,11 +46,54 @@ impl<'b> Command<'b> {
         self.url.as_str()
     }
 
+    pub fn run(&'b mut self) -> Result<Value, RSCError> {
+        let solr_result = HttpClient::new().get(self.get_url());
+
+        let response = match solr_result {
+            Ok(response) => response,
+            Err(e) => return Err(RSCError { source: Some(Box::new(e)), status: None, message: None }),
+        };
+
+        match response.status() {
+            StatusCode::OK => Ok(response.json::<Value>().unwrap()["response"]["docs"].clone()),
+            StatusCode::NOT_FOUND => return Err(RSCError { source: None, status: Some(StatusCode::NOT_FOUND), message: None }),
+            other_status => {
+                let body_text = response.text().unwrap();
+                let message_string = match serde_json::from_str::<Value>(&body_text) {
+                    Ok(r) => r["error"]["msg"].to_string(),
+                    Err(e) => {
+                        return Err(
+                            RSCError {
+                                source: Some(Box::new(e)),
+                                status: Some(other_status),
+                                message: Some(body_text)
+                            })
+                    }
+                };
+                return Err(RSCError { source: None, status: Some(other_status), message: Some(message_string.replace("\"", "")) })
+            }
+        }
+    }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::command::Command;
+    use super::*;
+
+    use std::sync::{Mutex, MutexGuard};
+    use mockall::lazy_static;
+    use mockall::predicate::eq;
+
+    lazy_static! {
+        static ref MTX: Mutex<()> = Mutex::new(());
+    }
+
+    fn get_lock(m: &'static Mutex<()>) -> MutexGuard<'static, ()> {
+        match m.lock() {
+            Ok(guard) => guard,
+            Err(poisoned) => poisoned.into_inner(),
+        }
+    }
 
     #[test]
     fn test_build_a_url_from_parameters() {
@@ -67,5 +117,30 @@ mod tests {
         assert_eq!(url_string, "http://host:8983/solr/collection/request_handler?commit=true");
     }
 
+    #[test]
+    fn test_run_calls_http_client_with_url() {
+        let _m = get_lock(&MTX);
 
+        let ctx = HttpClient::new_context();
+        ctx.expect().returning(|| {
+            let mut mock = HttpClient::default();
+            mock.expect_get()
+                .with(eq("http://localhost:8983/solr/default/select?q=*%3A*"))
+                .returning(|_| Ok(reqwest::blocking::Response::from(http::response::Builder::new()
+                    .status(200)
+                    .body(r#"{"response": {"docs": [{"success": true}]}}"#)
+                    .unwrap())));
+            mock
+        });
+
+        let collection = "default";
+        let host = "http://localhost:8983";
+        let mut command = Command::new(host, collection);
+        let result = command
+            .request_handler("select")
+            .query("*:*")
+            .run();
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap()[0]["success"], true);
+    }
 }

@@ -54,16 +54,8 @@ impl<'a> Client<'a> {
         let mut command = Command::new(&self.host, &self.collection);
         command
             .request_handler("select")
-            .query(query);
-
-        let solr_result =  self.http_client
-            .get(command.get_url());
-
-        let response = match solr_result {
-            Ok(response) => response,
-            Err(e) => return Err(RSCError { source: Some(Box::new(e)), status: None, message: None }),
-        };
-        self.handle_response(response.status(), response)
+            .query(query)
+            .run()
     }
 
     pub fn create(&self, document: Value) -> Result<(), RSCError> {
