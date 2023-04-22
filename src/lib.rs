@@ -14,7 +14,7 @@ use reqwest::StatusCode;
 
 use serde_json::{json, Value};
 use crate::error::RSCError;
-use crate::command::Command;
+use crate::command::{Command, Payload};
 
 #[derive(PartialEq)]
 pub enum AutoCommit {
@@ -39,15 +39,16 @@ impl<'a> Client<'a> {
     }
 
     pub fn create(&self, document: Value) -> Result<(), RSCError> {
-        let mut command = Command::new(&self.host, &self.collection);
-        command
-            .request_handler("update/json/docs");
+        let mut command_stub = Command::new(&self.host, &self.collection);
+        let command = command_stub
+            .request_handler("update/json/docs")
+            .payload(Payload::Body(document));
 
         if AutoCommit::YES == self.auto_commit {
             command.auto_commit();
         }
 
-        command.run_with_body(Some(document)).map(|_| { () })
+        command.run().map(|_| { () })
     }
 
     pub fn commit(&self) -> Result<(), RSCError> {
@@ -55,23 +56,25 @@ impl<'a> Client<'a> {
         command
             .request_handler("update")
             .auto_commit()
-            .run_with_body(None).map(|_| { () })
+            .payload(Payload::Empty)
+            .run().map(|_| { () })
     }
 
     pub fn delete(&self, query: &str) -> Result<(), RSCError> {
-        let delete_payload = Some(json!({
+        let delete_payload = json!({
             "delete": { "query": query }
-        }));
+        });
 
-        let mut command = Command::new(&self.host, &self.collection);
-        command
-            .request_handler("update");
+        let mut command_stub = Command::new(&self.host, &self.collection);
+        let command = command_stub
+            .request_handler("update")
+            .payload(Payload::Body(delete_payload));
 
         if AutoCommit::YES == self.auto_commit {
             command.auto_commit();
         }
 
-        command.run_with_body(delete_payload).map(|_| { () })
+        command.run().map(|_| { () })
     }
 
     pub fn new(host : &'a str, collection : &'a str, auto_commit: AutoCommit) -> Self {

@@ -8,9 +8,17 @@ use crate::error::RSCError;
 #[double]
 use crate::http_client::HttpClient;
 
+#[derive(Clone)]
+pub enum Payload {
+    Body(Value),
+    Empty,
+    None
+}
+
 pub struct Command<'b> {
     request_handler: &'b str,
     url: url::Url,
+    payload: Payload
 }
 
 impl<'b> Command<'b> {
@@ -19,7 +27,7 @@ impl<'b> Command<'b> {
         let mut url = url::Url::parse(base_url).unwrap();
         url.path_segments_mut().unwrap().push("solr");
         url.path_segments_mut().unwrap().push(collection);
-        Command { request_handler: "", url }
+        Command { request_handler: "", url, payload: Payload::None }
     }
 
     pub fn add_query_param(&mut self, key: &str, value: &str) -> &mut Self {
@@ -47,19 +55,17 @@ impl<'b> Command<'b> {
         self.url.as_str()
     }
 
-    pub fn run(&'b self) -> Result<Value, RSCError> {
-        let solr_result = HttpClient::new().get(self.generate_url_str());
-
-        let response = match solr_result {
-            Ok(response) => response,
-            Err(e) => return Err(RSCError { source: Some(Box::new(e)), status: None, message: None }),
-        };
-
-        self.handle_response(response)
+    pub fn payload(&'b mut self, payload: Payload) -> &mut Self {
+        self.payload = payload;
+        self
     }
 
-    pub fn run_with_body(&'b self, body: Option<Value>) -> Result<Value, RSCError> {
-        let solr_result = HttpClient::new().post(self.generate_url_str(), body);
+    pub fn run(&'b self) -> Result<Value, RSCError> {
+        let solr_result = match self.payload.clone() {
+            Payload::Body(body) => HttpClient::new().post(self.generate_url_str(), Some(body)),
+            Payload::Empty => HttpClient::new().post(self.generate_url_str(), None),
+            _ => HttpClient::new().get(self.generate_url_str())
+        };
 
         let response = match solr_result {
             Ok(response) => response,
@@ -183,7 +189,8 @@ mod tests {
         let result = command
             .request_handler("update/json/docs")
             .auto_commit()
-            .run_with_body(Some(json!({ "this is": "a document"})));
+            .payload(Payload::Body(json!({ "this is": "a document"})))
+            .run();
         assert!(result.is_ok());
         assert_eq!(result.unwrap()[0]["success"], true);
     }
