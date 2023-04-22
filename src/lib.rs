@@ -2,13 +2,16 @@ pub mod error;
 mod http_client;
 mod command;
 
+#[cfg(test)]
 use mockall_double::double;
-use reqwest::blocking::Response;
 
 #[double]
+#[cfg(test)]
 use http_client::HttpClient;
 
+#[cfg(test)]
 use reqwest::StatusCode;
+
 use serde_json::{json, Value};
 use crate::error::RSCError;
 use crate::command::Command;
@@ -22,33 +25,10 @@ pub enum AutoCommit {
 pub struct Client<'a> {
     host: &'a str,
     collection: &'a str,
-    http_client: HttpClient,
     auto_commit: AutoCommit
 }
 
 impl<'a> Client<'a> {
-
-    fn handle_response(&self, status: StatusCode, raw_response: Response) -> Result<Value, RSCError> {
-        match status {
-            StatusCode::OK => Ok(raw_response.json::<Value>().unwrap()["response"]["docs"].clone()),
-            StatusCode::NOT_FOUND => return Err(RSCError { source: None, status: Some(StatusCode::NOT_FOUND), message: None }),
-            other_status => {
-                let body_text = raw_response.text().unwrap();
-                let message_string = match serde_json::from_str::<Value>(&body_text) {
-                    Ok(r) => r["error"]["msg"].to_string(),
-                    Err(e) => {
-                        return Err(
-                            RSCError {
-                                source: Some(Box::new(e)),
-                                status: Some(other_status),
-                                message: Some(body_text)
-                            })
-                    }
-                };
-                return Err(RSCError { source: None, status: Some(other_status), message: Some(message_string.replace("\"", "")) })
-            }
-        }
-    }
 
     pub fn query(&self, query: &str) -> Result<Value, RSCError> {
         let mut command = Command::new(&self.host, &self.collection);
@@ -67,23 +47,15 @@ impl<'a> Client<'a> {
             command.auto_commit();
         }
 
-        let response_or_error = self.http_client.post(command.generate_url_str(), Some(document));
-        let response = match response_or_error {
-            Ok(r) => r,
-            Err(e) => return Err(RSCError { source: Some(Box::new(e)), status: None, message: None }),
-        };
-
-        self.handle_response(response.status(), response).map(|_| { () })
+        command.run_with_body(Some(document)).map(|_| { () })
     }
 
     pub fn commit(&self) -> Result<(), RSCError> {
         let mut command = Command::new(&self.host, &self.collection);
         command
             .request_handler("update")
-            .auto_commit();
-
-        let _ = self.http_client.post(command.generate_url_str(), None);
-        Ok(())
+            .auto_commit()
+            .run_with_body(None).map(|_| { () })
     }
 
     pub fn delete(&self, query: &str) -> Result<(), RSCError> {
@@ -99,20 +71,13 @@ impl<'a> Client<'a> {
             command.auto_commit();
         }
 
-        let response_or_error = self.http_client.post(command.generate_url_str(), delete_payload);
-        let response = match response_or_error {
-            Ok(r) => r,
-            Err(e) => return Err(RSCError { source: Some(Box::new(e)), status: None, message: None }),
-        };
-
-        self.handle_response(response.status(), response).map(|_| { () })
+        command.run_with_body(delete_payload).map(|_| { () })
     }
 
     pub fn new(host : &'a str, collection : &'a str, auto_commit: AutoCommit) -> Self {
         Self {
             host,
             collection,
-            http_client: HttpClient::new(),
             auto_commit
         }
     }
