@@ -1,5 +1,7 @@
 pub mod error;
 mod http_client;
+mod params;
+
 use mockall_double::double;
 use reqwest::blocking::Response;
 
