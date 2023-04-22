@@ -11,6 +11,7 @@ use http_client::HttpClient;
 use reqwest::StatusCode;
 use serde_json::{json, Value};
 use crate::error::RSCError;
+use crate::params::Params;
 
 pub enum AutoCommit {
     YES,
@@ -49,14 +50,18 @@ impl<'a> Client<'a> {
     }
 
     pub fn query(&self, query: &str) -> Result<Value, RSCError> {
+        let mut params = Params::new(&self.host, &self.collection);
+        params
+            .request_handler("select")
+            .query(query);
+
         let solr_result =  self.http_client
-            .get(&format!("{}/solr/{}/select?q={}", &self.host, &self.collection, &query));
+            .get(params.get_url());
 
         let response = match solr_result {
             Ok(response) => response,
             Err(e) => return Err(RSCError { source: Some(Box::new(e)), status: None, message: None }),
         };
-
         self.handle_response(response.status(), response)
     }
 

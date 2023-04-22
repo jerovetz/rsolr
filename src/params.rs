@@ -28,7 +28,7 @@ impl<'b> Params<'b> {
     }
 
     pub fn query(&mut self, query: &str) -> &mut Self {
-        self.add_query_param("query", query);
+        self.add_query_param("q", query);
         self
     }
 
@@ -36,7 +36,6 @@ impl<'b> Params<'b> {
         self.url.path_segments_mut().unwrap().push("solr");
         self.url.path_segments_mut().unwrap().push(self.collection);
         self.url.path_segments_mut().unwrap().push(self.request_handler);
-
         self.url.as_str()
     }
 
@@ -54,7 +53,7 @@ mod tests {
             .query("*:*");
 
         let url_string = params.get_url();
-        assert_eq!(url_string, "http://host:8983/solr/collection/request_handler?query=*%3A*");
+        assert_eq!(url_string, "http://host:8983/solr/collection/request_handler?q=*%3A*");
     }
 
     #[test]
