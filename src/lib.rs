@@ -67,7 +67,7 @@ impl<'a> Client<'a> {
             command.auto_commit();
         }
 
-        let response_or_error = self.http_client.post(command.get_url(), Some(document));
+        let response_or_error = self.http_client.post(command.generate_url_str(), Some(document));
         let response = match response_or_error {
             Ok(r) => r,
             Err(e) => return Err(RSCError { source: Some(Box::new(e)), status: None, message: None }),
@@ -82,7 +82,7 @@ impl<'a> Client<'a> {
             .request_handler("update")
             .auto_commit();
 
-        let _ = self.http_client.post(command.get_url(), None);
+        let _ = self.http_client.post(command.generate_url_str(), None);
         Ok(())
     }
 
@@ -99,7 +99,7 @@ impl<'a> Client<'a> {
             command.auto_commit();
         }
 
-        let response_or_error = self.http_client.post(command.get_url(), delete_payload);
+        let response_or_error = self.http_client.post(command.generate_url_str(), delete_payload);
         let response = match response_or_error {
             Ok(r) => r,
             Err(e) => return Err(RSCError { source: Some(Box::new(e)), status: None, message: None }),

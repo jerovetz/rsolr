@@ -1,6 +1,7 @@
 use http::StatusCode;
 use url;
 use mockall_double::double;
+use reqwest::blocking::Response;
 use serde_json::Value;
 use crate::error::RSCError;
 
@@ -8,7 +9,6 @@ use crate::error::RSCError;
 use crate::http_client::HttpClient;
 
 pub struct Command<'b> {
-    collection: &'b str,
     request_handler: &'b str,
     url: url::Url,
 }
@@ -16,7 +16,10 @@ pub struct Command<'b> {
 impl<'b> Command<'b> {
 
     pub fn new(base_url: &'b str, collection: &'b str) -> Self {
-        Command { collection, request_handler: "", url: url::Url::parse(base_url).unwrap() }
+        let mut url = url::Url::parse(base_url).unwrap();
+        url.path_segments_mut().unwrap().push("solr");
+        url.path_segments_mut().unwrap().push(collection);
+        Command { request_handler: "", url }
     }
 
     pub fn add_query_param(&mut self, key: &str, value: &str) -> &mut Self {
@@ -26,6 +29,7 @@ impl<'b> Command<'b> {
 
     pub fn request_handler(&mut self, handler: &'b str) -> &mut Self {
         self.request_handler = handler;
+        self.url.path_segments_mut().unwrap().push(self.request_handler);
         self
     }
 
@@ -39,21 +43,22 @@ impl<'b> Command<'b> {
         self
     }
 
-    pub fn get_url(&'b mut self) -> &'b str {
-        self.url.path_segments_mut().unwrap().push("solr");
-        self.url.path_segments_mut().unwrap().push(self.collection);
-        self.url.path_segments_mut().unwrap().push(self.request_handler);
+    pub fn generate_url_str(&'b self) -> &'b str {
         self.url.as_str()
     }
 
-    pub fn run(&'b mut self) -> Result<Value, RSCError> {
-        let solr_result = HttpClient::new().get(self.get_url());
+    pub fn run(&'b self) -> Result<Value, RSCError> {
+        let solr_result = HttpClient::new().get(self.generate_url_str());
 
         let response = match solr_result {
             Ok(response) => response,
             Err(e) => return Err(RSCError { source: Some(Box::new(e)), status: None, message: None }),
         };
 
+        self.handle_response(response)
+    }
+
+    fn handle_response(&self, response: Response) -> Result<Value, RSCError> {
         match response.status() {
             StatusCode::OK => Ok(response.json::<Value>().unwrap()["response"]["docs"].clone()),
             StatusCode::NOT_FOUND => return Err(RSCError { source: None, status: Some(StatusCode::NOT_FOUND), message: None }),
@@ -102,7 +107,7 @@ mod tests {
             .request_handler("request_handler")
             .query("*:*");
 
-        let url_string = params.get_url();
+        let url_string = params.generate_url_str();
         assert_eq!(url_string, "http://host:8983/solr/collection/request_handler?q=*%3A*");
     }
 
@@ -113,7 +118,7 @@ mod tests {
             .request_handler("request_handler")
             .auto_commit();
 
-        let url_string = params.get_url();
+        let url_string = params.generate_url_str();
         assert_eq!(url_string, "http://host:8983/solr/collection/request_handler?commit=true");
     }
 
