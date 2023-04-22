@@ -1,6 +1,6 @@
 pub mod error;
 mod http_client;
-mod params;
+mod command;
 
 use mockall_double::double;
 use reqwest::blocking::Response;
@@ -11,7 +11,7 @@ use http_client::HttpClient;
 use reqwest::StatusCode;
 use serde_json::{json, Value};
 use crate::error::RSCError;
-use crate::params::Params;
+use crate::command::Command;
 
 #[derive(PartialEq)]
 pub enum AutoCommit {
@@ -51,13 +51,13 @@ impl<'a> Client<'a> {
     }
 
     pub fn query(&self, query: &str) -> Result<Value, RSCError> {
-        let mut params = Params::new(&self.host, &self.collection);
-        params
+        let mut command = Command::new(&self.host, &self.collection);
+        command
             .request_handler("select")
             .query(query);
 
         let solr_result =  self.http_client
-            .get(params.get_url());
+            .get(command.get_url());
 
         let response = match solr_result {
             Ok(response) => response,
@@ -67,15 +67,15 @@ impl<'a> Client<'a> {
     }
 
     pub fn create(&self, document: Value) -> Result<(), RSCError> {
-        let mut params = Params::new(&self.host, &self.collection);
-        params
+        let mut command = Command::new(&self.host, &self.collection);
+        command
             .request_handler("update/json/docs");
 
         if AutoCommit::YES == self.auto_commit {
-            params.auto_commit();
+            command.auto_commit();
         }
 
-        let response_or_error = self.http_client.post(params.get_url(), Some(document));
+        let response_or_error = self.http_client.post(command.get_url(), Some(document));
         let response = match response_or_error {
             Ok(r) => r,
             Err(e) => return Err(RSCError { source: Some(Box::new(e)), status: None, message: None }),
@@ -85,29 +85,29 @@ impl<'a> Client<'a> {
     }
 
     pub fn commit(&self) -> Result<(), RSCError> {
-        let mut params = Params::new(&self.host, &self.collection);
-        params
+        let mut command = Command::new(&self.host, &self.collection);
+        command
             .request_handler("update")
             .auto_commit();
 
-        let _ = self.http_client.post(params.get_url(), None);
+        let _ = self.http_client.post(command.get_url(), None);
         Ok(())
     }
 
     pub fn delete(&self, query: &str) -> Result<(), RSCError> {
-        let delete_command = Some(json!({
+        let delete_payload = Some(json!({
             "delete": { "query": query }
         }));
 
-        let mut params = Params::new(&self.host, &self.collection);
-        params
+        let mut command = Command::new(&self.host, &self.collection);
+        command
             .request_handler("update");
 
         if AutoCommit::YES == self.auto_commit {
-            params.auto_commit();
+            command.auto_commit();
         }
 
-        let response_or_error = self.http_client.post(params.get_url(), delete_command);
+        let response_or_error = self.http_client.post(command.get_url(), delete_payload);
         let response = match response_or_error {
             Ok(r) => r,
             Err(e) => return Err(RSCError { source: Some(Box::new(e)), status: None, message: None }),

@@ -1,15 +1,15 @@
 use url;
 
-pub struct Params<'b> {
+pub struct Command<'b> {
     collection: &'b str,
     request_handler: &'b str,
     url: url::Url
 }
 
-impl<'b> Params<'b> {
+impl<'b> Command<'b> {
 
     pub fn new(base_url: &'b str, collection: &'b str) -> Self {
-        Params { collection, request_handler: "", url: url::Url::parse(base_url).unwrap() }
+        Command { collection, request_handler: "", url: url::Url::parse(base_url).unwrap() }
     }
 
     pub fn add_query_param(&mut self, key: &str, value: &str) -> &mut Self {
@@ -43,11 +43,11 @@ impl<'b> Params<'b> {
 
 #[cfg(test)]
 mod tests {
-    use crate::params::Params;
+    use crate::command::Command;
 
     #[test]
     fn test_build_a_url_from_parameters() {
-        let mut params = Params::new("http://host:8983", "collection");
+        let mut params = Command::new("http://host:8983", "collection");
         params
             .request_handler("request_handler")
             .query("*:*");
@@ -58,7 +58,7 @@ mod tests {
 
     #[test]
     fn test_build_a_url_from_parameters_set_autocommit() {
-        let mut params = Params::new("http://host:8983", "collection");
+        let mut params = Command::new("http://host:8983", "collection");
         params
             .request_handler("request_handler")
             .auto_commit();
