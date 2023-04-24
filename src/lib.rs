@@ -62,6 +62,16 @@ impl<'a> Client<'a> {
         self
     }
 
+    pub fn start(&mut self, start: u32) -> &mut Self {
+        self.add_query_param("start", &start.to_string());
+        self
+    }
+
+    pub fn rows(&mut self, rows: u32) -> &mut Self {
+        self.add_query_param("rows", &rows.to_string());
+        self
+    }
+
     pub fn query(&mut self, query: &str) -> &mut Self {
         self.add_query_param("q", query);
         self
@@ -186,6 +196,18 @@ mod tests {
 
         let url_string = params.generate_url_str();
         assert_eq!(url_string, "http://host:8983/solr/collection/request_handler?commit=true");
+    }
+
+    #[test]
+    fn test_build_a_url_with_start_and_rows() {
+        let mut params = Client::new("http://host:8983", "collection");
+        params
+            .request_handler("request_handler")
+            .start(135545)
+            .rows(12);
+
+        let url_string = params.generate_url_str();
+        assert_eq!(url_string, "http://host:8983/solr/collection/request_handler?start=135545&rows=12");
     }
 
     #[test]
