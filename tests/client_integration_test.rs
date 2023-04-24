@@ -82,8 +82,8 @@ fn test_create_with_auto_commit_inserts_document() {
     let document : Value = json!({"okapi": "egerke"});
     let mut client = Client::new(base_url, collection);
     client
-        .create(document)
         .auto_commit()
+        .create(document)
         .run()
         .ok();
 

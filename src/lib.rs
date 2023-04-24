@@ -49,7 +49,6 @@ impl<'a> Client<'a> {
     pub fn request_handler(&mut self, handler: &'a str) -> &mut Self {
         self.request_handler = handler;
         self.payload(Payload::None);
-        self.url.query_pairs_mut().clear();
         self.url.path_segments_mut().unwrap()
             .clear()
             .push("solr")
@@ -77,7 +76,7 @@ impl<'a> Client<'a> {
         self
     }
 
-    pub fn run(&self) -> Result<Value, RSCError> {
+    pub fn run(&mut self) -> Result<Value, RSCError> {
         let solr_result = match self.payload.clone() {
             Payload::Body(body) => HttpClient::new().post(self.generate_url_str(), Some(body)),
             Payload::Empty => HttpClient::new().post(self.generate_url_str(), None),
@@ -88,6 +87,8 @@ impl<'a> Client<'a> {
             Ok(response) => response,
             Err(e) => return Err(RSCError { source: Some(Box::new(e)), status: None, message: None }),
         };
+
+        self.url.query_pairs_mut().clear();
 
         self.handle_response(response)
     }
