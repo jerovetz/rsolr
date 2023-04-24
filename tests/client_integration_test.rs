@@ -1,9 +1,9 @@
-use rsc::{AutoCommit, Client};
+use rsc::{Client};
 use reqwest::blocking::Client as HttpClient;
 use reqwest::header::CONTENT_TYPE;
 use std::error::Error;
 use reqwest::StatusCode;
-use serde_json::Value;
+use serde_json::{json, Value};
 
 fn empty_collection(host : &str) -> Result<(), reqwest::Error> {
     let http_client = HttpClient::new();
@@ -30,8 +30,7 @@ fn test_query_document_value_returned() -> Result<(), reqwest::Error> {
         .body(serde_json::to_string(&expected_documents).unwrap())
         .send()?;
 
-    let client = Client::new(host, collection, AutoCommit::NO);
-    let result = client.query("*:*");
+    let result = Client::new(host, collection).select("*:*").run();
     assert_eq!(result.unwrap().get(0).unwrap().get("egerke").unwrap().get(0).unwrap(), "okapi");
     empty_collection(host).ok();
     Ok(())
@@ -41,7 +40,7 @@ fn test_query_document_value_returned() -> Result<(), reqwest::Error> {
 fn test_query_responds_rsc_error_with_embedded_network_error() {
     let collection = "default";
     let host = "http://not_existing_host:8983";
-    let result = Client::new(host, collection, AutoCommit::NO).query("*:*");
+    let result = Client::new(host, collection).select("*:*").run();
     assert!(result.is_err());
     let error = result.err().expect("No Error");
     let original_error_message = error.source().expect("no source error").to_string();
@@ -53,7 +52,7 @@ fn test_query_responds_rsc_error_with_embedded_network_error() {
 fn test_query_responds_rsc_error_with_embedded_no_collection_error() {
     let collection = "not_existing_collection";
     let host = "http://localhost:8983";
-    let result = Client::new(host, collection, AutoCommit::NO).query("*:*");
+    let result = Client::new(host, collection).select("*:*").run();
     assert!(result.is_err());
     let error = result.err().expect("No Error");
     assert_eq!(error.status().unwrap(), StatusCode::NOT_FOUND);
@@ -65,7 +64,7 @@ fn test_query_responds_rsc_error_with_embedded_no_collection_error() {
 fn test_query_responds_rsc_error_with_solr_problem_if_query_is_bad() {
     let collection = "default";
     let host = "http://localhost:8983";
-    let result = Client::new(host, collection, AutoCommit::NO).query("bad: query");
+    let result = Client::new(host, collection).select("bad: query").run();
     assert!(result.is_err());
     let error = result.err().expect("No Error");
     assert_eq!(error.status().unwrap(), StatusCode::BAD_REQUEST);
@@ -75,18 +74,22 @@ fn test_query_responds_rsc_error_with_solr_problem_if_query_is_bad() {
 }
 
 #[test]
-fn test_create_with_auto_commit_inserts_document_responds_nothing() {
+fn test_create_with_auto_commit_inserts_document() {
     let collection = "default";
-    let host = "http://localhost:8983";
-    empty_collection(host).ok();
+    let base_url = "http://localhost:8983";
+    empty_collection(base_url).ok();
 
-    let document : Value = serde_json::from_str(r#"{"okapi": "egerke"}"#).unwrap();
-    let client = Client::new(host,collection, AutoCommit::YES);
-    let _ = client.create(document);
+    let document : Value = json!({"okapi": "egerke"});
+    let mut client = Client::new(base_url, collection);
+    client
+        .create(document)
+        .auto_commit()
+        .run()
+        .ok();
 
-    let result = client.query("*:*");
+    let result = client.select("*:*").run();
     assert_eq!(result.unwrap()[0]["okapi"][0], "egerke");
-    empty_collection(host).ok();
+    empty_collection(base_url).ok();
 }
 
 #[test]
@@ -96,13 +99,19 @@ fn test_create_without_auto_commit_uploads_document_and_index_on_separated_commi
     empty_collection(host).ok();
 
     let document : Value = serde_json::from_str(r#"{"okapi": "egerke"}"#).unwrap();
-    let client = Client::new(host,collection, AutoCommit::NO);
-    let _ = client.create(document);
-    let result = client.query("*:*");
+    let mut client = Client::new(host,collection);
+
+    client
+        .create(document)
+        .run()
+        .ok();
+
+    let result = client.select("*:*").run();
     assert_eq!(result.unwrap(), serde_json::from_str::<Value>("[]").unwrap());
 
-    let _ = client.commit();
-    let result = client.query("*:*");
+    client.commit().run().ok();
+
+    let result = client.select("*:*").run();
     assert_eq!(result.unwrap()[0]["okapi"][0], "egerke");
     empty_collection(host).ok();
 }
@@ -111,8 +120,9 @@ fn test_create_without_auto_commit_uploads_document_and_index_on_separated_commi
 fn test_create_responds_rsc_error_with_embedded_network_error() {
     let collection = "default";
     let host = "http://not_existing_host:8983";
-    let result = Client::new(host, collection, AutoCommit::NO)
-        .create(serde_json::from_str(r#"{"anything": "anything"}"#).unwrap());
+    let result = Client::new(host, collection)
+        .create(json!({"anything": "anything"}))
+        .run();
     assert!(result.is_err());
     let error = result.err().expect("No Error");
     let original_error_message = error.source().expect("no source error").to_string();
@@ -124,8 +134,11 @@ fn test_create_responds_rsc_error_with_embedded_network_error() {
 fn test_create_responds_rsc_error_with_embedded_no_collection_error() {
     let collection = "not_existing_collection";
     let host = "http://localhost:8983";
-    let result = Client::new(host, collection, AutoCommit::NO)
-        .create(serde_json::from_str(r#"{"anything": "anything"}"#).unwrap());
+
+    let result = Client::new(host, collection)
+        .create(json!({"anything": "anything"}))
+        .run();
+
     assert!(result.is_err());
     let error = result.err().expect("No Error");
     assert_eq!(error.status().unwrap(), StatusCode::NOT_FOUND);
@@ -138,14 +151,19 @@ fn test_delete_deletes_docs() {
     let collection = "default";
     let host = "http://localhost:8983";
     empty_collection(host).ok();
-    let client = Client::new(host, collection, AutoCommit::YES);
-    let _ =  client.create(serde_json::from_str(r#"{"okapi": "another egerke"}"#).unwrap());
+    let mut client = Client::new(host, collection);
+    let _ =  client
+        .auto_commit()
+        .create(json!({"okapi": "another egerke"}))
+        .run();
 
     let result = client
-        .delete("*:*");
+        .auto_commit()
+        .delete("*:*")
+        .run();
 
     assert!(result.is_ok());
-    let docs = client.query("*:*");
+    let docs = client.select("*:*").run();
     assert_eq!(docs.unwrap(), serde_json::from_str::<Value>("[]").unwrap());
 
     empty_collection(host).ok();
@@ -156,15 +174,17 @@ fn test_delete_deletes_docs_specified_by_query() {
     let collection = "default";
     let host = "http://localhost:8983";
     empty_collection(host).ok();
-    let client = Client::new(host, collection, AutoCommit::YES);
-    let _ =  client.create(serde_json::from_str(r#"{"okapi": "another egerke"}"#).unwrap());
-    let _ =  client.create(serde_json::from_str(r#"{"okapi2": "egerke"}"#).unwrap());
+    let mut client = Client::new(host, collection);
+    client.create(json!({"okapi": "another egerke"})).run().ok();
+    client.create(json!({"okapi2": "egerke"})).run().ok();
+    client.commit().run().ok();
 
     let result = client
-        .delete("okapi2: egerke");
+        .delete("okapi2: egerke")
+        .run();
 
     assert!(result.is_ok());
-    let docs = client.query("*:*");
+    let docs = client.select("*:*").run();
     assert_eq!(docs.unwrap()[0]["okapi"][0], "another egerke");
 
     empty_collection(host).ok();
@@ -175,19 +195,19 @@ fn test_without_autocommit_delete_deletes_docs_after_commit_specified_by_query()
     let collection = "default";
     let host = "http://localhost:8983";
     empty_collection(host).ok();
-    let client = Client::new(host, collection, AutoCommit::NO);
-    let _ =  client.create(serde_json::from_str(r#"{"okapi": "another egerke"}"#).unwrap());
-    let _ =  client.create(serde_json::from_str(r#"{"okapi2": "egerke"}"#).unwrap());
-    client.commit().ok();
+    let mut client = Client::new(host, collection);
+    client.create(json!({"okapi": "another egerke"})).run().ok();
+    client.create(json!({"okapi2": "egerke"})).run().ok();
+    client.commit().run().ok();
 
-    client.delete("okapi: another egerke").ok();
+    client.delete("okapi: another egerke").run().ok();
 
-    let docs = client.query("*:*");
+    let docs = client.select("*:*").run();
     assert_eq!(docs.unwrap()[0]["okapi"][0], "another egerke");
 
-    client.commit().ok();
+    client.commit().run().ok();
 
-    let docs = client.query("*:*");
+    let docs = client.select("*:*").run();
     assert_ne!(docs.unwrap()[0]["okapi"][0], "another egerke");
 
     empty_collection(host).ok();
@@ -197,7 +217,7 @@ fn test_without_autocommit_delete_deletes_docs_after_commit_specified_by_query()
 fn test_delete_responds_rsc_error_with_embedded_network_error() {
     let collection = "default";
     let host = "http://not_existing_host:8983";
-    let result = Client::new(host, collection, AutoCommit::NO).delete("*:*");
+    let result = Client::new(host, collection).delete("*:*").run();
     assert!(result.is_err());
     let error = result.err().expect("No Error");
     let original_error_message = error.source().expect("no source error").to_string();
@@ -209,7 +229,7 @@ fn test_delete_responds_rsc_error_with_embedded_network_error() {
 fn test_delete_responds_rsc_error_with_embedded_no_collection_error() {
     let collection = "not_existing_collection";
     let host = "http://localhost:8983";
-    let result = Client::new(host, collection, AutoCommit::NO).delete("*:*");
+    let result = Client::new(host, collection).delete("*:*").run();
     assert!(result.is_err());
     let error = result.err().expect("No Error");
     assert_eq!(error.status().unwrap(), StatusCode::NOT_FOUND);
@@ -221,7 +241,7 @@ fn test_delete_responds_rsc_error_with_embedded_no_collection_error() {
 fn test_delete_responds_rsc_error_with_solr_problem_if_query_is_bad() {
     let collection = "default";
     let host = "http://localhost:8983";
-    let result = Client::new(host, collection, AutoCommit::NO).delete("bad: query");
+    let result = Client::new(host, collection).delete("bad: query").run();
     assert!(result.is_err());
     let error = result.err().expect("No Error");
     assert_eq!(error.status().unwrap(), StatusCode::BAD_REQUEST);
