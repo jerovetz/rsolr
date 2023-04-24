@@ -1,6 +1,8 @@
 pub mod error;
 mod http_client;
+mod solr_result;
 
+use serde::Deserialize;
 use http::StatusCode;
 use url;
 use mockall_double::double;
@@ -10,6 +12,7 @@ use serde_json::{json, Value};
 #[double]
 use http_client::HttpClient;
 use crate::error::RSCError;
+use crate::solr_result::SolrResult;
 
 #[derive(Clone)]
 pub enum Payload {
@@ -86,11 +89,11 @@ impl<'a> Client<'a> {
         self
     }
 
-    pub fn run(&mut self) -> Result<Value, RSCError> {
+    pub fn run<T: for<'de> Deserialize<'de> + Clone>(&mut self) -> Result<Option<SolrResult<T>>, RSCError> {
         let solr_result = match self.payload.clone() {
             Payload::Body(body) => HttpClient::new().post(self.generate_url_str(), Some(body)),
             Payload::Empty => HttpClient::new().post(self.generate_url_str(), None),
-            _ => HttpClient::new().get(self.generate_url_str())
+            Payload::None => HttpClient::new().get(self.generate_url_str())
         };
 
         let response = match solr_result {
@@ -100,7 +103,7 @@ impl<'a> Client<'a> {
 
         self.url.query_pairs_mut().clear();
 
-        self.handle_response(response)
+        self.handle_response::<T>(response).map(|r| r.response)
     }
 
     pub fn select(&mut self, query: &str) -> &mut Self {
@@ -132,9 +135,9 @@ impl<'a> Client<'a> {
             .payload(Payload::Empty)
     }
 
-    fn handle_response(&self, response: Response) -> Result<Value, RSCError> {
+    fn handle_response<T: for<'de> Deserialize<'de> + Clone>(&self, response: Response) -> Result<solr_result::Response<T>, RSCError> {
         match response.status() {
-            StatusCode::OK => Ok(response.json::<Value>().unwrap()["response"]["docs"].clone()),
+            StatusCode::OK => Ok(response.json::<solr_result::Response<T>>().unwrap().clone()),
             StatusCode::NOT_FOUND => return Err(RSCError { source: None, status: Some(StatusCode::NOT_FOUND), message: None }),
             other_status => {
                 let body_text = response.text().unwrap();
@@ -221,7 +224,7 @@ mod tests {
                 .with(eq("http://localhost:8983/solr/default/select?q=*%3A*"))
                 .returning(|_| Ok(reqwest::blocking::Response::from(http::response::Builder::new()
                     .status(200)
-                    .body(r#"{"response": {"docs": [{"success": true}]}}"#)
+                    .body(r#"{"response": {"numFound": 1,"numFoundExact": true,"start": 0,"docs": [{"success": true }]}}"#)
                     .unwrap())));
             mock
         });
@@ -232,9 +235,9 @@ mod tests {
         let result = command
             .request_handler("select")
             .query("*:*")
-            .run();
+            .run::<Value>();
         assert!(result.is_ok());
-        assert_eq!(result.unwrap()[0]["success"], true);
+        assert_eq!(result.unwrap().unwrap().docs[0]["success"], true);
     }
 
     #[test]
@@ -248,7 +251,7 @@ mod tests {
                 .withf(| url, body | url == "http://localhost:8983/solr/default/update%2Fjson%2Fdocs?commit=true" && *body == Some(json!({ "this is": "a document"})) )
                 .returning(|_, _| Ok(reqwest::blocking::Response::from(http::response::Builder::new()
                     .status(200)
-                    .body(r#"{"response": {"docs": [{"success": true}]}}"#)
+                    .body(r#"{"response": {"numFound": 1,"numFoundExact": true,"start": 0,"docs": [{"success": true }]}}"#)
                     .unwrap())));
             mock
         });
@@ -260,9 +263,9 @@ mod tests {
             .request_handler("update/json/docs")
             .auto_commit()
             .payload(Payload::Body(json!({ "this is": "a document"})))
-            .run();
+            .run::<Value>();
         assert!(result.is_ok());
-        assert_eq!(result.unwrap()[0]["success"], true);
+        assert_eq!(result.unwrap().unwrap().docs[0]["success"], true);
     }
 
     #[test]
@@ -280,7 +283,7 @@ mod tests {
         let base_url = "http://localhost:8983";
         let result = Client::new(base_url, collection)
             .select("bad: query")
-            .run();
+            .run::<Value>();
         assert!(result.is_err());
         let error = result.err().expect("No Error");
         assert_eq!(error.status().unwrap(), StatusCode::INTERNAL_SERVER_ERROR);
@@ -302,7 +305,7 @@ mod tests {
         let host = "http://localhost:8983";
         let result = Client::new(host, collection)
             .select("bad: query")
-            .run();
+            .run::<Value>();
         assert!(result.is_err());
         let error = result.err().expect("No Error");
         assert_eq!(error.status().unwrap(), StatusCode::INTERNAL_SERVER_ERROR);
@@ -325,7 +328,7 @@ mod tests {
         let result = Client::new(host, collection)
             .auto_commit()
             .create(json!({"anything": "anything"}))
-            .run();
+            .run::<Value>();
         assert!(result.is_err());
         let error = result.err().expect("No Error");
         assert_eq!(error.status().unwrap(), StatusCode::INTERNAL_SERVER_ERROR);
@@ -348,7 +351,7 @@ mod tests {
         let result = Client::new(host, collection)
             .auto_commit()
             .create(json!({"anything": "anything"}))
-            .run();
+            .run::<Value>();
         assert!(result.is_err());
         let error = result.err().expect("No Error");
         assert_eq!(error.status().unwrap(), StatusCode::INTERNAL_SERVER_ERROR);
@@ -371,7 +374,7 @@ mod tests {
         let result = Client::new(host, collection)
             .auto_commit()
             .delete("*:*")
-            .run();
+            .run::<Value>();
         assert!(result.is_err());
         let error = result.err().expect("No Error");
         assert_eq!(error.status().unwrap(), StatusCode::INTERNAL_SERVER_ERROR);
@@ -393,7 +396,7 @@ mod tests {
         let host = "http://localhost:8983";
         let result = Client::new(host, collection)
             .delete("*:*")
-            .run();
+            .run::<Value>();
         assert!(result.is_err());
         let error = result.err().expect("No Error");
         assert_eq!(error.status().unwrap(), StatusCode::INTERNAL_SERVER_ERROR);
