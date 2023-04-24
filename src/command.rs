@@ -2,7 +2,7 @@ use http::StatusCode;
 use url;
 use mockall_double::double;
 use reqwest::blocking::Response;
-use serde_json::Value;
+use serde_json::{json, Value};
 use crate::error::RSCError;
 
 #[double]
@@ -13,6 +13,15 @@ pub enum Payload {
     Body(Value),
     Empty,
     None
+}
+
+#[non_exhaustive]
+pub struct RequestHandlers;
+
+impl RequestHandlers {
+    pub const QUERY: &'static str = "select";
+    pub const CREATE: &'static str = "update/json/docs";
+    pub const DELETE: &'static str = "update";
 }
 
 pub struct Command<'b> {
@@ -75,6 +84,35 @@ impl<'b> Command<'b> {
         self.handle_response(response)
     }
 
+    pub fn select(&'b mut self, query: &str) -> &mut Self {
+        self
+            .request_handler(RequestHandlers::QUERY)
+            .query(query)
+    }
+
+    pub fn create(&'b mut self, document: Value) -> &mut Self {
+        self
+            .request_handler(RequestHandlers::CREATE)
+            .payload(Payload::Body(document))
+    }
+
+    pub fn delete(&'b mut self, query: &str) -> &mut Self {
+        let delete_payload = json!({
+            "delete": { "query": query }
+        });
+
+        self
+            .request_handler(RequestHandlers::DELETE)
+            .payload(Payload::Body(delete_payload))
+    }
+
+    pub fn commit(&'b mut self) -> &mut Self {
+        self
+            .request_handler("update")
+            .auto_commit()
+            .payload(Payload::Empty)
+    }
+
     fn handle_response(&self, response: Response) -> Result<Value, RSCError> {
         match response.status() {
             StatusCode::OK => Ok(response.json::<Value>().unwrap()["response"]["docs"].clone()),
@@ -106,6 +144,7 @@ mod tests {
     use mockall::lazy_static;
     use mockall::predicate::eq;
     use serde_json::json;
+    use crate::error;
 
     lazy_static! {
         static ref MTX: Mutex<()> = Mutex::new(());
@@ -193,5 +232,141 @@ mod tests {
             .run();
         assert!(result.is_ok());
         assert_eq!(result.unwrap()[0]["success"], true);
+    }
+
+    #[test]
+    fn test_select_responds_rsc_error_with_other_problem_if_dunno() {
+        let _m = get_lock(&MTX);
+        let ctx = HttpClient::new_context();
+
+        ctx.expect().returning(|| {
+            let mut mock = HttpClient::default();
+            mock.expect_get().returning(|_| Ok(reqwest::blocking::Response::from(http::response::Builder::new().status(500).body(r#"{"error": {"code": 500, "msg": "okapi"}}"#).unwrap())));
+            mock
+        });
+
+        let collection = "default";
+        let base_url = "http://localhost:8983";
+        let result = Command::new(base_url, collection)
+            .select("bad: query")
+            .run();
+        assert!(result.is_err());
+        let error = result.err().expect("No Error");
+        assert_eq!(error.status().unwrap(), StatusCode::INTERNAL_SERVER_ERROR);
+        assert_eq!(error.message().unwrap(), "okapi");
+        assert!(matches!(error.kind(), error::ErrorKind::Other));
+    }
+
+    #[test]
+    fn test_select_responds_rsc_error_with_raw_text_body_and_status_code_if_no_standard_message() {
+        let _m = get_lock(&MTX);
+        let ctx = HttpClient::new_context();
+        ctx.expect().returning(|| {
+            let mut mock = HttpClient::default();
+            mock.expect_get().returning(|_| Ok(reqwest::blocking::Response::from(http::response::Builder::new().status(500).body(r#"some unparseable thing"#).unwrap())));
+            mock
+        });
+
+        let collection = "default";
+        let host = "http://localhost:8983";
+        let result = Command::new(host, collection)
+            .select("bad: query")
+            .run();
+        assert!(result.is_err());
+        let error = result.err().expect("No Error");
+        assert_eq!(error.status().unwrap(), StatusCode::INTERNAL_SERVER_ERROR);
+        assert_eq!(error.message().unwrap(), "some unparseable thing");
+        assert!(matches!(error.kind(), error::ErrorKind::Other));
+    }
+
+    #[test]
+    fn test_create_responds_rsc_error_with_other_problem_if_dunno() {
+        let _m = get_lock(&MTX);
+        let ctx = HttpClient::new_context();
+        ctx.expect().returning(|| {
+            let mut mock = HttpClient::default();
+            mock.expect_post().returning(|_, _| Ok(reqwest::blocking::Response::from(http::response::Builder::new().status(500).body(r#"{"error": {"code": 500, "msg": "okapi"}}"#).unwrap())));
+            mock
+        });
+
+        let collection = "default";
+        let host = "http://localhost:8983";
+        let result = Command::new(host, collection)
+            .auto_commit()
+            .create(json!({"anything": "anything"}))
+            .run();
+        assert!(result.is_err());
+        let error = result.err().expect("No Error");
+        assert_eq!(error.status().unwrap(), StatusCode::INTERNAL_SERVER_ERROR);
+        assert_eq!(error.message().unwrap(), "okapi");
+        assert!(matches!(error.kind(), error::ErrorKind::Other));
+    }
+
+    #[test]
+    fn test_create_responds_rsc_error_with_raw_text_body_and_status_code_if_no_standard_message() {
+        let _m = get_lock(&MTX);
+        let ctx = HttpClient::new_context();
+        ctx.expect().returning(|| {
+            let mut mock = HttpClient::default();
+            mock.expect_post().returning(|_, _| Ok(reqwest::blocking::Response::from(http::response::Builder::new().status(500).body(r#"some unparseable thing"#).unwrap())));
+            mock
+        });
+
+        let collection = "default";
+        let host = "http://localhost:8983";
+        let result = Command::new(host, collection)
+            .auto_commit()
+            .create(json!({"anything": "anything"}))
+            .run();
+        assert!(result.is_err());
+        let error = result.err().expect("No Error");
+        assert_eq!(error.status().unwrap(), StatusCode::INTERNAL_SERVER_ERROR);
+        assert_eq!(error.message().unwrap(), "some unparseable thing");
+        assert!(matches!(error.kind(), error::ErrorKind::Other));
+    }
+
+    #[test]
+    fn test_delete_responds_rsc_error_with_other_problem_if_dunno() {
+        let _m = get_lock(&MTX);
+        let ctx = HttpClient::new_context();
+        ctx.expect().returning(|| {
+            let mut mock = HttpClient::default();
+            mock.expect_post().returning(|_, _| Ok(reqwest::blocking::Response::from(http::response::Builder::new().status(500).body(r#"{"error": {"code": 500, "msg": "okapi"}}"#).unwrap())));
+            mock
+        });
+
+        let collection = "default";
+        let host = "http://localhost:8983";
+        let result = Command::new(host, collection)
+            .auto_commit()
+            .delete("*:*")
+            .run();
+        assert!(result.is_err());
+        let error = result.err().expect("No Error");
+        assert_eq!(error.status().unwrap(), StatusCode::INTERNAL_SERVER_ERROR);
+        assert_eq!(error.message().unwrap(), "okapi");
+        assert!(matches!(error.kind(), error::ErrorKind::Other));
+    }
+
+    #[test]
+    fn test_delete_responds_rsc_error_with_raw_text_body_and_status_code_if_no_standard_message() {
+        let _m = get_lock(&MTX);
+        let ctx = HttpClient::new_context();
+        ctx.expect().returning(|| {
+            let mut mock = HttpClient::default();
+            mock.expect_post().returning(|_, _| Ok(reqwest::blocking::Response::from(http::response::Builder::new().status(500).body(r#"some unparseable thing"#).unwrap())));
+            mock
+        });
+
+        let collection = "default";
+        let host = "http://localhost:8983";
+        let result = Command::new(host, collection)
+            .delete("*:*")
+            .run();
+        assert!(result.is_err());
+        let error = result.err().expect("No Error");
+        assert_eq!(error.status().unwrap(), StatusCode::INTERNAL_SERVER_ERROR);
+        assert_eq!(error.message().unwrap(), "some unparseable thing");
+        assert!(matches!(error.kind(), error::ErrorKind::Other));
     }
 }
