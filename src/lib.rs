@@ -2,7 +2,7 @@ pub mod error;
 mod http_client;
 mod solr_result;
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use http::StatusCode;
 use url;
 use mockall_double::double;
@@ -14,7 +14,7 @@ use http_client::HttpClient;
 use crate::error::RSCError;
 use crate::solr_result::SolrResult;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum Payload {
     Body(Value),
     Empty,
@@ -84,8 +84,18 @@ impl<'a> Client<'a> {
         self.url.as_str()
     }
 
-    pub fn payload(&mut self, payload: Payload) -> &mut Self {
-        self.payload = payload;
+    pub fn set_document<P : Clone + Serialize>(&mut self, document: P) -> &mut Self {
+        self.payload(Payload::Body(serde_json::to_value::<P>(document).unwrap()));
+        self
+    }
+
+    pub fn set_empty_payload(&mut self) -> &mut Self {
+        self.payload(Payload::Empty);
+        self
+    }
+
+    pub fn clear_payload(&mut self) -> &mut Self {
+        self.payload(Payload::None);
         self
     }
 
@@ -112,10 +122,10 @@ impl<'a> Client<'a> {
             .query(query)
     }
 
-    pub fn create(&mut self, document: Value) -> &mut Self {
+    pub fn create<P: Serialize + Clone>(&mut self, document: P) -> &mut Self {
         self
             .request_handler(RequestHandlers::CREATE)
-            .payload(Payload::Body(document))
+            .set_document::<P>(document)
     }
 
     pub fn delete(&mut self, query: &str) -> &mut Self {
@@ -125,14 +135,19 @@ impl<'a> Client<'a> {
 
         self
             .request_handler(RequestHandlers::DELETE)
-            .payload(Payload::Body(delete_payload))
+            .set_document(delete_payload)
     }
 
     pub fn commit(&mut self) -> &mut Self {
         self
             .request_handler("update")
             .auto_commit()
-            .payload(Payload::Empty)
+            .set_empty_payload()
+    }
+
+    fn payload(&mut self, payload: Payload) -> &mut Self {
+        self.payload = payload;
+        self
     }
 
     fn handle_response<T: for<'de> Deserialize<'de> + Clone>(&self, response: Response) -> Result<solr_result::Response<T>, RSCError> {
@@ -262,7 +277,7 @@ mod tests {
         let result = command
             .request_handler("update/json/docs")
             .auto_commit()
-            .payload(Payload::Body(json!({ "this is": "a document"})))
+            .set_document(json!({ "this is": "a document"}))
             .run::<Value>();
         assert!(result.is_ok());
         assert_eq!(result.unwrap().unwrap().docs[0]["success"], true);

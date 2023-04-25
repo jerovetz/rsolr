@@ -2,8 +2,16 @@ use rsc::{Client};
 use reqwest::blocking::Client as HttpClient;
 use reqwest::header::CONTENT_TYPE;
 use std::error::Error;
+use std::fmt::Debug;
 use reqwest::StatusCode;
+use serde::{Serialize};
 use serde_json::{json, Value};
+
+#[derive(Serialize, Clone, Debug)]
+struct ExcitingDocument {
+    desire: String,
+    vision: Vec<String>,
+}
 
 fn empty_collection(host : &str) -> Result<(), reqwest::Error> {
     let http_client = HttpClient::new();
@@ -89,6 +97,26 @@ fn test_create_with_auto_commit_inserts_document() {
 
     let result = client.select("*:*").run::<Value>();
     assert_eq!(result.unwrap().unwrap().docs[0]["okapi"][0], "egerke");
+    empty_collection(base_url).ok();
+}
+
+#[test]
+fn test_create_inserts_any_serializable_document() {
+    let collection = "default";
+    let base_url = "http://localhost:8983";
+    empty_collection(base_url).ok();
+
+    let document = ExcitingDocument { desire: "sausage".to_string(), vision: vec!("firearms".to_string(), "York".to_string(), "Belzebub".to_string()) };
+
+    let mut client = Client::new(base_url, collection);
+    client
+        .auto_commit()
+        .create(document)
+        .run::<Value>()
+        .ok();
+
+    let result = client.select("*:*").run::<Value>();
+    assert_eq!(result.unwrap().unwrap().docs[0]["desire"][0], "sausage");
     empty_collection(base_url).ok();
 }
 

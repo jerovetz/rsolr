@@ -1,6 +1,6 @@
 use serde::Deserialize;
 
-#[derive(Deserialize, Clone)]
+#[derive(Deserialize, Clone, Debug)]
 #[allow(non_snake_case)]
 pub struct SolrResult<T> {
     pub numFound: u32,
