@@ -2,6 +2,7 @@ use std::error::Error;
 use std::fmt::{Debug, Display, Formatter};
 use reqwest::StatusCode;
 
+/// Errors that may occur in the Solr interaction.
 pub struct RSCError {
     pub source: Option<Box<dyn Error>>,
     pub status: Option<StatusCode>,
@@ -25,6 +26,8 @@ impl Display for RSCError {
 }
 
 impl Error for RSCError {
+    /// Gets original error, which generally comes
+    /// from JSON encoding/decoding or from the HTTP communication.
     fn source(&self) -> Option<&(dyn Error + 'static)> {
         return match &self.source {
             Some(source) => Some(&**source),
@@ -53,10 +56,13 @@ impl RSCError {
         ErrorKind::Other
     }
 
+    /// Gets the HTTP status code the client has.
     pub fn status(&self) -> Option<StatusCode> {
         self.status
     }
 
+    /// Gets the error message, which could be a Solr server error message, a JSON processing error text
+    /// or a raw text body, if client can't parse it as JSON.
     pub fn message(&self) -> Option<&str> {
         let static_message = Box::leak(self.message.as_ref().unwrap().clone().into_boxed_str());
         Some(static_message)

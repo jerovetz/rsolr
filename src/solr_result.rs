@@ -1,5 +1,6 @@
 use serde::Deserialize;
-
+/// The successful response wrapper. It holds the response of the JSON Response Writer.
+///  `<https://solr.apache.org/guide/8_1/response-writers.html#json-response-writer>`
 #[derive(Deserialize, Clone, Debug)]
 #[allow(non_snake_case)]
 pub struct SolrResult<T> {

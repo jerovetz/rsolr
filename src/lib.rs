@@ -1,6 +1,92 @@
+//! A Solr client for Rust.
+//!
+//! `Rsc` provides capabilities to manipulate and form
+//! requests to the Solr server, and contains some shorthands
+//! for them. It uses the blocking version of the reqwest http client.
+//!
+//! ## Query
+//!
+//! You can retrieve documents as types with implemented `Clone` and `Deserialize`.
+//!
+//! ```rust
+//! use serde_json::Value;
+//! use rsc::Client;
+//! use rsc::error::RSCError;
+//! use rsc::solr_result::SolrResult;
+//!
+//! fn query_all() -> Result<SolrResult<Value>, RSCError> {
+//!     let result = Client::new("http://solr:8983", "collection")
+//!         .select("*:*")
+//!         .run::<Value>();
+//!     match result {
+//!         Ok(solr_result) => Ok(solr_result.expect("Request is OK, but no response; in select it's a failure on Solr side.")),
+//!         Err(e) => Err(e)
+//!     }
+//! }
+//! ```
+//!
+//! ## Create
+//!
+//! You can use types with implemented `Clone` and `Serialize`.
+//!
+//! ```rust
+//!
+//! use serde::Serialize;
+//! use serde_json::Value;
+//! use rsc::Client;
+//!
+//! #[derive(Serialize, Clone)]
+//! struct SimpleDocument {
+//!     field: Vec<String>
+//! }
+//!
+//! fn create() {
+//!     let document = SimpleDocument { field: vec!("nice".to_string(), "document".to_string()) };
+//!     Client::new("http://solr:8983", "collection")
+//!         .create(document)
+//!         .run::<Value>().expect("panic, request failed.");
+//! }
+//! ```
+//! ## Delete
+//!
+//! ```rust
+//! use serde_json::Value;
+//! use rsc::Client;
+//! fn delete() {
+//!     Client::new("http::/solr:8983", "collection")
+//!         .delete("delete:query")
+//!         .run::<Value>().expect("panic, request failed.");
+//! }
+//! ```
+//!
+//! ## Custom handler with params
+//!
+//! You can define any handlers as well.
+//!
+//! ```rust
+//!
+//! use serde_json::Value;
+//! use rsc::Client;
+//! use rsc::error::RSCError;
+//! use rsc::solr_result::SolrResult;
+//! fn more_like_this()  -> Result<SolrResult<Value>, RSCError> {
+//!     let result = Client::new("http://solr:8983", "collection")
+//!         .request_handler("mlt")
+//!         .add_query_param("mlt.fl", "similarity_field")
+//!         .add_query_param("mlt.mintf", "4")
+//!         .add_query_param("mlt.minwl", "3")
+//!         .run::<Value>();
+//!     match result {
+//!         Ok(solr_result) => Ok(solr_result.expect("Request is OK, but no response; in select it's a failure on Solr side.")),
+//!         Err(e) => Err(e)
+//!     }
+//! }
+//! ```
+
+
 pub mod error;
 mod http_client;
-mod solr_result;
+pub mod solr_result;
 
 use serde::{Deserialize, Serialize};
 use http::StatusCode;
@@ -14,6 +100,8 @@ use http_client::HttpClient;
 use crate::error::RSCError;
 use crate::solr_result::SolrResult;
 
+
+/// The Payload defines the request method. Body and Empty sets method to POST, None uses GET.
 #[derive(Clone, Debug)]
 pub enum Payload {
     Body(Value),
@@ -44,11 +132,14 @@ impl<'a> Client<'a> {
         Client { request_handler: "", url, payload: Payload::None, collection }
     }
 
+    /// Adds custom GET query parameter to the Solr query.
     pub fn add_query_param(&mut self, key: &str, value: &str) -> &mut Self {
         self.url.query_pairs_mut().append_pair(key, value);
         self
     }
 
+    /// Sets the Solr request handler in the URL. You can use RequestHandlers const, but it might be any string.
+    ///
     pub fn request_handler(&mut self, handler: &'a str) -> &mut Self {
         self.request_handler = handler;
         self.payload(Payload::None);
@@ -59,46 +150,54 @@ impl<'a> Client<'a> {
             .push(self.request_handler);
         self
     }
-
+    /// Shorthand for commit=true, so if set write operations will be immediate.
     pub fn auto_commit(&mut self) -> &mut Self {
         self.add_query_param("commit", "true");
         self
     }
 
+    /// Shorthand for 'start' parameter of Solr basic pagination.
     pub fn start(&mut self, start: u32) -> &mut Self {
         self.add_query_param("start", &start.to_string());
         self
     }
 
+    /// Shorthand for 'rows' parameter of Solr basic pagination.
     pub fn rows(&mut self, rows: u32) -> &mut Self {
         self.add_query_param("rows", &rows.to_string());
         self
     }
 
+    /// Shorthand for 'q' parameter for setting query in the request.
     pub fn query(&mut self, query: &str) -> &mut Self {
         self.add_query_param("q", query);
         self
     }
 
+    /// Generates the request url as string without sending.
     pub fn generate_url_str(&self) -> &str {
         self.url.as_str()
     }
 
+    /// Sets the payload of the request, only JSON is supported.
     pub fn set_document<P : Clone + Serialize>(&mut self, document: P) -> &mut Self {
         self.payload(Payload::Body(serde_json::to_value::<P>(document).unwrap()));
         self
     }
 
+    /// Empties the payload, it requires for POST requests (i.e. Solr delete or commit).
     pub fn set_empty_payload(&mut self) -> &mut Self {
         self.payload(Payload::Empty);
         self
     }
 
+    /// Clears the payload, now request method will be GET.
     pub fn clear_payload(&mut self) -> &mut Self {
         self.payload(Payload::None);
         self
     }
 
+    /// Runs the prepared request and fetches response to the type specified as a generic. Responds with Result which contains the SolrResult - it is the response part of Solr response.
     pub fn run<T: for<'de> Deserialize<'de> + Clone>(&mut self) -> Result<Option<SolrResult<T>>, RSCError> {
         let solr_result = match self.payload.clone() {
             Payload::Body(body) => HttpClient::new().post(self.generate_url_str(), Some(body)),
@@ -116,18 +215,21 @@ impl<'a> Client<'a> {
         self.handle_response::<T>(response).map(|r| r.response)
     }
 
+    /// Shorthand for query.
     pub fn select(&mut self, query: &str) -> &mut Self {
         self
             .request_handler(RequestHandlers::QUERY)
             .query(query)
     }
 
+    /// Shorthand for create.
     pub fn create<P: Serialize + Clone>(&mut self, document: P) -> &mut Self {
         self
             .request_handler(RequestHandlers::CREATE)
             .set_document::<P>(document)
     }
 
+    /// Shorthand for delete.
     pub fn delete(&mut self, query: &str) -> &mut Self {
         let delete_payload = json!({
             "delete": { "query": query }
@@ -138,6 +240,7 @@ impl<'a> Client<'a> {
             .set_document(delete_payload)
     }
 
+    /// Shorthand for direct commit.
     pub fn commit(&mut self) -> &mut Self {
         self
             .request_handler("update")
