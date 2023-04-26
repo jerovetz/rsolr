@@ -91,5 +91,5 @@ I use [Cargo Run Script](https://crates.io/crates/cargo-run-script) to setup and
     cargo run-script solr-start
     cargo run-script solr-provision
 
-After that you can reach your local Solr on `http://localhost:8983`. For testing I create a default collection without any schema def. Practically it means every value will be [multivalue](https://solr.apache.org/guide/7_4/field-type-definitions-and-properties.html#field-default-properties) by default.
+Now you can reach your local Solr on `http://localhost:8983`. For testing I create a default collection without any schema def. Practically it means every value will be [multivalue](https://solr.apache.org/guide/7_4/field-type-definitions-and-properties.html#field-default-properties) by default.
 
