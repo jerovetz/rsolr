@@ -9,6 +9,7 @@ repository = "https://github.com/jerovetz/rsc/"
 readme = "README.md"
 keywords = ["solr", "search server"]
 categories = ["web-programming::http-client"]
+exclude = [".github/workflows/rust.yml"]
 
 [dependencies]
 http = "0.2.9"
