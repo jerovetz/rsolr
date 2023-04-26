@@ -84,3 +84,12 @@ for them. It uses the blocking version of the reqwest http client.
      }
  }
  ```
+
+## Development
+I use [Cargo Run Script](https://crates.io/crates/cargo-run-script) to setup and manage a Solr locally. You'll also need a [Docker](https://docs.docker.com/get-docker/). After checkout you should
+
+    cargo run-script solr-start
+    cargo run-script solr-provision
+
+After that you can reach your local Solr on `http://localhost:8983`. For testing I create a default collection without any schema def. Practically it means every value will be [multivalue](https://solr.apache.org/guide/7_4/field-type-definitions-and-properties.html#field-default-properties) by default.
+
