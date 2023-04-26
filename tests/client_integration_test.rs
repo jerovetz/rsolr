@@ -4,10 +4,10 @@ use reqwest::header::CONTENT_TYPE;
 use std::error::Error;
 use std::fmt::Debug;
 use reqwest::StatusCode;
-use serde::{Serialize};
+use serde::{Serialize, Deserialize};
 use serde_json::{json, Value};
 
-#[derive(Serialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 struct ExcitingDocument {
     desire: String,
     vision: Vec<String>,
@@ -40,6 +40,29 @@ fn test_query_document_value_returned() -> Result<(), reqwest::Error> {
 
     let result = Client::new(host, collection).select("*:*").run::<Value>();
     assert_eq!(result.unwrap().unwrap().docs.get(0).unwrap().get("egerke").unwrap().get(0).unwrap(), "okapi");
+    empty_collection(host).ok();
+    Ok(())
+}
+
+#[test]
+fn test_query_returns_error_if_cannot_serialize() -> Result<(), reqwest::Error> {
+    let collection = "default";
+    let host = "http://127.0.0.1:8983";
+    empty_collection(host).ok();
+
+    let http_client = HttpClient::new();
+    let data = r#"{"egerke": "okapi"}"#;
+    let expected_documents : Value = serde_json::from_str(data).unwrap();
+
+    http_client
+        .post(format!("{}/solr/{}/update/json/docs?commit=true", host, collection))
+        .header(CONTENT_TYPE, "application/json")
+        .body(serde_json::to_string(&expected_documents).unwrap())
+        .send()?;
+
+    let result = Client::new(host, collection).select("*:*").run::<ExcitingDocument>();
+    assert!(result.is_err());
+    assert!(result.err().unwrap().source().is_some());
     empty_collection(host).ok();
     Ok(())
 }

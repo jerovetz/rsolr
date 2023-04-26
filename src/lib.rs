@@ -152,7 +152,12 @@ impl<'a> Client<'a> {
 
     fn handle_response<T: for<'de> Deserialize<'de> + Clone>(&self, response: Response) -> Result<solr_result::Response<T>, RSCError> {
         match response.status() {
-            StatusCode::OK => Ok(response.json::<solr_result::Response<T>>().unwrap().clone()),
+            StatusCode::OK => {
+                match response.json::<solr_result::Response<T>>() {
+                    Ok(response) => Ok(response),
+                    Err(e) => return Err(RSCError { source: Some(Box::new(e)), status: None, message: None }),
+                }
+            },
             StatusCode::NOT_FOUND => return Err(RSCError { source: None, status: Some(StatusCode::NOT_FOUND), message: None }),
             other_status => {
                 let body_text = response.text().unwrap();
