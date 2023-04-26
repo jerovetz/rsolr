@@ -175,7 +175,7 @@ impl<'a> Client<'a> {
     }
 
     /// Generates the request url as string without sending.
-    pub fn generate_url_str(&self) -> &str {
+    pub fn url_str(&self) -> &str {
         self.url.as_str()
     }
 
@@ -200,9 +200,9 @@ impl<'a> Client<'a> {
     /// Runs the prepared request and fetches response to the type specified as a generic. Responds with Result which contains the SolrResult - it is the response part of Solr response.
     pub fn run<T: for<'de> Deserialize<'de> + Clone>(&mut self) -> Result<Option<SolrResult<T>>, RSCError> {
         let solr_result = match self.payload.clone() {
-            Payload::Body(body) => HttpClient::new().post(self.generate_url_str(), Some(body)),
-            Payload::Empty => HttpClient::new().post(self.generate_url_str(), None),
-            Payload::None => HttpClient::new().get(self.generate_url_str())
+            Payload::Body(body) => HttpClient::new().post(self.url_str(), Some(body)),
+            Payload::Empty => HttpClient::new().post(self.url_str(), None),
+            Payload::None => HttpClient::new().get(self.url_str())
         };
 
         let response = match solr_result {
@@ -309,7 +309,7 @@ mod tests {
             .request_handler("request_handler")
             .query("*:*");
 
-        let url_string = params.generate_url_str();
+        let url_string = params.url_str();
         assert_eq!(url_string, "http://host:8983/solr/collection/request_handler?q=*%3A*");
     }
 
@@ -320,7 +320,7 @@ mod tests {
             .request_handler("request_handler")
             .auto_commit();
 
-        let url_string = params.generate_url_str();
+        let url_string = params.url_str();
         assert_eq!(url_string, "http://host:8983/solr/collection/request_handler?commit=true");
     }
 
@@ -332,7 +332,7 @@ mod tests {
             .start(135545)
             .rows(12);
 
-        let url_string = params.generate_url_str();
+        let url_string = params.url_str();
         assert_eq!(url_string, "http://host:8983/solr/collection/request_handler?start=135545&rows=12");
     }
 

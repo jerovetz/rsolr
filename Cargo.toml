@@ -7,7 +7,7 @@ description = "A Solr client for Rust."
 license = "MIT"
 repository = "https://github.com/jerovetz/rsc/"
 readme = "README.md"
-keywords = "solr, search server"
+keywords = ["solr", "search server"]
 categories = ["web-programming::http-client"]
 
 [dependencies]
