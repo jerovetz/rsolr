@@ -197,7 +197,7 @@ impl<'a> Client<'a> {
         self
     }
 
-    /// Runs the prepared request and fetches response to the type specified as a generic. Responds with Result which contains the SolrResult - it is the response part of Solr response.
+    /// Runs the prepared request and fetches response to the type specified as a generic. Responds Result which contains SolrResult, the response part of Solr response.
     pub fn run<T: for<'de> Deserialize<'de> + Clone>(&mut self) -> Result<Option<SolrResult<T>>, RSCError> {
         let solr_result = match self.payload.clone() {
             Payload::Body(body) => HttpClient::new().post(self.url_str(), Some(body)),
