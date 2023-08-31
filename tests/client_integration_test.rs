@@ -3,6 +3,8 @@ use reqwest::blocking::Client as HttpClient;
 use reqwest::header::CONTENT_TYPE;
 use std::error::Error;
 use std::fmt::Debug;
+use std::sync::{Mutex, MutexGuard};
+use mockall::lazy_static;
 use reqwest::StatusCode;
 use serde::{Serialize, Deserialize};
 use serde_json::{json, Value};
@@ -22,8 +24,21 @@ fn empty_collection(host : &str) -> Result<(), reqwest::Error> {
     Ok(())
 }
 
+lazy_static! {
+        static ref MTX: Mutex<()> = Mutex::new(());
+    }
+
+fn get_lock(m: &'static Mutex<()>) -> MutexGuard<'static, ()> {
+    match m.lock() {
+        Ok(guard) => guard,
+        Err(poisoned) => poisoned.into_inner(),
+    }
+}
+
+
 #[test]
 fn test_query_document_value_returned() -> Result<(), reqwest::Error> {
+    let _m = get_lock(&MTX);
     let collection = "default";
     let host = "http://127.0.0.1:8983";
     empty_collection(host).ok();
@@ -46,6 +61,7 @@ fn test_query_document_value_returned() -> Result<(), reqwest::Error> {
 
 #[test]
 fn test_query_returns_error_if_cannot_serialize() -> Result<(), reqwest::Error> {
+    let _m = get_lock(&MTX);
     let collection = "default";
     let host = "http://127.0.0.1:8983";
     empty_collection(host).ok();
@@ -69,6 +85,7 @@ fn test_query_returns_error_if_cannot_serialize() -> Result<(), reqwest::Error> 
 
 #[test]
 fn test_query_responds_rsc_error_with_embedded_network_error() {
+    let _m = get_lock(&MTX);
     let collection = "default";
     let host = "http://not_existing_host:8983";
     let result = Client::new(host, collection).select("*:*").run::<Value>();
@@ -81,6 +98,7 @@ fn test_query_responds_rsc_error_with_embedded_network_error() {
 
 #[test]
 fn test_query_responds_rsc_error_with_embedded_no_collection_error() {
+    let _m = get_lock(&MTX);
     let collection = "not_existing_collection";
     let host = "http://localhost:8983";
     let result = Client::new(host, collection).select("*:*").run::<Value>();
@@ -93,6 +111,7 @@ fn test_query_responds_rsc_error_with_embedded_no_collection_error() {
 
 #[test]
 fn test_query_responds_rsc_error_with_solr_problem_if_query_is_bad() {
+    let _m = get_lock(&MTX);
     let collection = "default";
     let host = "http://localhost:8983";
     let result = Client::new(host, collection).select("bad: query").run::<Value>();
@@ -106,6 +125,7 @@ fn test_query_responds_rsc_error_with_solr_problem_if_query_is_bad() {
 
 #[test]
 fn test_create_with_auto_commit_inserts_document() {
+    let _m = get_lock(&MTX);
     let collection = "default";
     let base_url = "http://localhost:8983";
     empty_collection(base_url).ok();
@@ -125,6 +145,7 @@ fn test_create_with_auto_commit_inserts_document() {
 
 #[test]
 fn test_create_inserts_any_serializable_document() {
+    let _m = get_lock(&MTX);
     let collection = "default";
     let base_url = "http://localhost:8983";
     empty_collection(base_url).ok();
@@ -145,6 +166,7 @@ fn test_create_inserts_any_serializable_document() {
 
 #[test]
 fn test_create_without_auto_commit_uploads_document_and_index_on_separated_commit_responds_nothing() {
+    let _m = get_lock(&MTX);
     let collection = "default";
     let host = "http://localhost:8983";
     empty_collection(host).ok();
@@ -169,6 +191,7 @@ fn test_create_without_auto_commit_uploads_document_and_index_on_separated_commi
 
 #[test]
 fn test_create_responds_rsc_error_with_embedded_network_error() {
+    let _m = get_lock(&MTX);
     let collection = "default";
     let host = "http://not_existing_host:8983";
     let result = Client::new(host, collection)
@@ -183,6 +206,7 @@ fn test_create_responds_rsc_error_with_embedded_network_error() {
 
 #[test]
 fn test_create_responds_rsc_error_with_embedded_no_collection_error() {
+    let _m = get_lock(&MTX);
     let collection = "not_existing_collection";
     let host = "http://localhost:8983";
 
@@ -199,6 +223,7 @@ fn test_create_responds_rsc_error_with_embedded_no_collection_error() {
 
 #[test]
 fn test_delete_deletes_docs() {
+    let _m = get_lock(&MTX);
     let collection = "default";
     let host = "http://localhost:8983";
     empty_collection(host).ok();
@@ -222,6 +247,7 @@ fn test_delete_deletes_docs() {
 
 #[test]
 fn test_delete_deletes_docs_specified_by_query() {
+    let _m = get_lock(&MTX);
     let collection = "default";
     let host = "http://localhost:8983";
     empty_collection(host).ok();
@@ -243,6 +269,7 @@ fn test_delete_deletes_docs_specified_by_query() {
 
 #[test]
 fn test_without_autocommit_delete_deletes_docs_after_commit_specified_by_query() {
+    let _m = get_lock(&MTX);
     let collection = "default";
     let host = "http://localhost:8983";
     empty_collection(host).ok();
@@ -266,6 +293,7 @@ fn test_without_autocommit_delete_deletes_docs_after_commit_specified_by_query()
 
 #[test]
 fn test_delete_responds_rsc_error_with_embedded_network_error() {
+    let _m = get_lock(&MTX);
     let collection = "default";
     let host = "http://not_existing_host:8983";
     let result = Client::new(host, collection).delete("*:*").run::<Value>();
@@ -278,6 +306,7 @@ fn test_delete_responds_rsc_error_with_embedded_network_error() {
 
 #[test]
 fn test_delete_responds_rsc_error_with_embedded_no_collection_error() {
+    let _m = get_lock(&MTX);
     let collection = "not_existing_collection";
     let host = "http://localhost:8983";
     let result = Client::new(host, collection).delete("*:*").run::<Value>();
@@ -290,6 +319,7 @@ fn test_delete_responds_rsc_error_with_embedded_no_collection_error() {
 
 #[test]
 fn test_delete_responds_rsc_error_with_solr_problem_if_query_is_bad() {
+    let _m = get_lock(&MTX);
     let collection = "default";
     let host = "http://localhost:8983";
     let result = Client::new(host, collection).delete("bad: query").run::<Value>();
