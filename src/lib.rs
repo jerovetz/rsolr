@@ -290,7 +290,6 @@ impl<'a> Client<'a> {
 
 #[cfg(test)]
 mod tests {
-    use std::collections::HashMap;
     use super::*;
 
     use std::sync::{Mutex, MutexGuard};
@@ -410,7 +409,6 @@ mod tests {
             .run::<Value>();
         assert!(result.is_ok());
         let facets = result.unwrap().facet_counts.unwrap();
-        assert_eq!(facets.facet_queries, HashMap::new());
         assert_eq!(facets.facet_fields, serde_json::from_str::<Value>(r#"{"exists":["term1", 23423,"term2",993939]}"#).unwrap());
     }
 

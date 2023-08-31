@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use serde::{Deserialize};
 use serde_json::Value;
 
@@ -14,7 +13,7 @@ pub struct Response<T> {
 
 #[derive(Deserialize, Clone, Debug)]
 pub struct Facet {
-    pub facet_queries: HashMap<String, u64>,
+    pub facet_queries: Value,
     pub facet_fields: Value
 }
 
