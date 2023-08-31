@@ -139,7 +139,6 @@ impl<'a> Client<'a> {
     }
 
     /// Sets the Solr request handler in the URL. You can use RequestHandlers const, but it might be any string.
-    ///
     pub fn request_handler(&mut self, handler: &'a str) -> &mut Self {
         self.request_handler = handler;
         self.payload(Payload::None);
@@ -197,7 +196,7 @@ impl<'a> Client<'a> {
         self
     }
 
-    /// Runs the prepared request and fetches response to the type specified as a generic. Responds Result which contains SolrResult, the response part of Solr response.
+    /// Runs the prepared request and fetches response to the type specified. Responds Result which contains SolrResult, the response part of Solr response.
     pub fn run<T: for<'de> Deserialize<'de> + Clone>(&mut self) -> Result<Option<SolrResult<T>>, RSolrError> {
         let solr_result = match self.payload.clone() {
             Payload::Body(body) => HttpClient::new().post(self.url_str(), Some(body)),
