@@ -12,9 +12,9 @@
 //! use serde_json::Value;
 //! use rsolr::Client;
 //! use rsolr::error::RSolrError;
-//! use rsolr::solr_response::SolrResponse;
+//! use rsolr::solr_response::Response;
 //!
-//! fn query_all() -> Result<SolrResponse<Value>, RSolrError> {
+//! fn query_all() -> Result<Response<Value>, RSolrError> {
 //!     let result = Client::new("http://solr:8983", "collection")
 //!         .select("*:*")
 //!         .run::<Value>();
@@ -68,8 +68,8 @@
 //! use serde_json::Value;
 //! use rsolr::Client;
 //! use rsolr::error::RSolrError;
-//! use rsolr::solr_response::SolrResponse;
-//! fn more_like_this()  -> Result<SolrResponse<Value>, RSolrError> {
+//! use rsolr::solr_response::Response;
+//! fn more_like_this()  -> Result<Response<Value>, RSolrError> {
 //!     let result = Client::new("http://solr:8983", "collection")
 //!         .request_handler("mlt")
 //!         .add_query_param("mlt.fl", "similarity_field")
@@ -92,13 +92,13 @@ use serde::{Deserialize, Serialize};
 use http::StatusCode;
 use url;
 use mockall_double::double;
-use reqwest::blocking::Response;
+use reqwest::blocking::Response as HttpResponse;
 use serde_json::{json, Value};
 
 #[double]
 use http_client::HttpClient;
 use crate::error::RSolrError;
-use crate::solr_response::SolrResponse;
+use crate::solr_response::Response;
 
 
 /// The Payload defines the request method. Body and Empty sets method to POST, None uses GET.
@@ -197,7 +197,7 @@ impl<'a> Client<'a> {
     }
 
     /// Runs the prepared request and fetches response to the type specified. Responds Result which contains SolrResult, the response part of Solr response.
-    pub fn run<T: for<'de> Deserialize<'de> + Clone>(&mut self) -> Result<Option<SolrResponse<T>>, RSolrError> {
+    pub fn run<T: for<'de> Deserialize<'de> + Clone>(&mut self) -> Result<Option<Response<T>>, RSolrError> {
         let solr_result = match self.payload.clone() {
             Payload::Body(body) => HttpClient::new().post(self.url_str(), Some(body)),
             Payload::Empty => HttpClient::new().post(self.url_str(), None),
@@ -252,7 +252,7 @@ impl<'a> Client<'a> {
         self
     }
 
-    fn handle_response<T: for<'de> Deserialize<'de> + Clone>(&self, response: Response) -> Result<solr_response::SolrRawResponse<T>, RSolrError> {
+    fn handle_response<T: for<'de> Deserialize<'de> + Clone>(&self, response: HttpResponse) -> Result<solr_response::SolrRawResponse<T>, RSolrError> {
         match response.status() {
             StatusCode::OK => {
                 match response.json::<solr_response::SolrRawResponse<T>>() {
