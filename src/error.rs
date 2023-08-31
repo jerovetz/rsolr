@@ -3,29 +3,29 @@ use std::fmt::{Debug, Display, Formatter};
 use reqwest::StatusCode;
 
 /// Errors that may occur in the Solr interaction.
-pub struct RSCError {
+pub struct RSolrError {
     pub source: Option<Box<dyn Error>>,
     pub status: Option<StatusCode>,
     pub message: Option<String>
 }
 
-impl Debug for RSCError {
+impl Debug for RSolrError {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), std::fmt::Error> {
-        let mut builder = f.debug_struct("error:RSCError");
+        let mut builder = f.debug_struct("error:RSolrError");
         builder.field("source", &self.source());
         builder.finish()
     }
 }
 
-impl Display for RSCError {
+impl Display for RSolrError {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), std::fmt::Error> {
-        let mut builder = f.debug_struct("error:RSCError");
+        let mut builder = f.debug_struct("error:RSolrError");
         builder.field("source", &self.source());
         builder.finish()
     }
 }
 
-impl Error for RSCError {
+impl Error for RSolrError {
     /// Gets original error, which generally comes
     /// from JSON encoding/decoding or from the HTTP communication.
     fn source(&self) -> Option<&(dyn Error + 'static)> {
@@ -43,7 +43,7 @@ pub enum ErrorKind {
     Other
 }
 
-impl RSCError {
+impl RSolrError {
     pub fn kind(&self) -> ErrorKind {
         if self.source.is_some() && self.status.is_none() {
            return ErrorKind::Network

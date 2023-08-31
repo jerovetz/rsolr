@@ -1,8 +1,8 @@
-### RSC
+### RSolr
 
 A Solr client for Rust.
 
-`Rsc` provides capabilities to manipulate and form
+`Rsolr` provides capabilities to manipulate and form
 requests to the Solr server, and contains some shorthands
 for them. It uses the blocking version of the reqwest http client.
 
@@ -12,11 +12,11 @@ for them. It uses the blocking version of the reqwest http client.
 
  ```rust
  use serde_json::Value;
- use rsc::Client;
- use rsc::error::RSCError;
- use rsc::solr_result::SolrResult;
+ use rsolr::Client;
+ use rsolr::error::RSolrError;
+ use rsolr::solr_result::SolrResult;
 
- fn query_all() -> Result<SolrResult<Value>, RSCError> {
+ fn query_all() -> Result<SolrResult<Value>, RSolrError> {
      let result = Client::new("http://solr:8983", "collection")
          .select("*:*")
          .run::<Value>();
@@ -35,7 +35,7 @@ for them. It uses the blocking version of the reqwest http client.
 
  use serde::Serialize;
  use serde_json::Value;
- use rsc::Client;
+ use rsolr::Client;
 
  #[derive(Serialize, Clone)]
  struct SimpleDocument {
@@ -53,7 +53,7 @@ for them. It uses the blocking version of the reqwest http client.
 
  ```rust
  use serde_json::Value;
- use rsc::Client;
+ use rsolr::Client;
  fn delete() {
      Client::new("http::/solr:8983", "collection")
          .delete("delete:query")
@@ -68,10 +68,10 @@ for them. It uses the blocking version of the reqwest http client.
  ```rust
 
  use serde_json::Value;
- use rsc::Client;
- use rsc::error::RSCError;
- use rsc::solr_result::SolrResult;
- fn more_like_this()  -> Result<SolrResult<Value>, RSCError> {
+ use rsolr::Client;
+ use rsolr::error::RSolrError;
+ use rsolr::solr_result::SolrResult;
+ fn more_like_this()  -> Result<SolrResult<Value>, RSolrError> {
      let result = Client::new("http://solr:8983", "collection")
          .request_handler("mlt")
          .add_query_param("mlt.fl", "similarity_field")

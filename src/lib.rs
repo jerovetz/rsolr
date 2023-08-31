@@ -1,6 +1,6 @@
 //! A Solr client for Rust.
 //!
-//! `Rsc` provides capabilities to manipulate and form
+//! `Rsolr` provides capabilities to manipulate and form
 //! requests to the Solr server, and contains some shorthands
 //! for them. It uses the blocking version of the reqwest http client.
 //!
@@ -10,11 +10,11 @@
 //!
 //! ```rust
 //! use serde_json::Value;
-//! use rsc::Client;
-//! use rsc::error::RSCError;
-//! use rsc::solr_result::SolrResult;
+//! use rsolr::Client;
+//! use rsolr::error::RSolrError;
+//! use rsolr::solr_result::SolrResult;
 //!
-//! fn query_all() -> Result<SolrResult<Value>, RSCError> {
+//! fn query_all() -> Result<SolrResult<Value>, RSolrError> {
 //!     let result = Client::new("http://solr:8983", "collection")
 //!         .select("*:*")
 //!         .run::<Value>();
@@ -33,7 +33,7 @@
 //!
 //! use serde::Serialize;
 //! use serde_json::Value;
-//! use rsc::Client;
+//! use rsolr::Client;
 //!
 //! #[derive(Serialize, Clone)]
 //! struct SimpleDocument {
@@ -51,7 +51,7 @@
 //!
 //! ```rust
 //! use serde_json::Value;
-//! use rsc::Client;
+//! use rsolr::Client;
 //! fn delete() {
 //!     Client::new("http::/solr:8983", "collection")
 //!         .delete("delete:query")
@@ -66,10 +66,10 @@
 //! ```rust
 //!
 //! use serde_json::Value;
-//! use rsc::Client;
-//! use rsc::error::RSCError;
-//! use rsc::solr_result::SolrResult;
-//! fn more_like_this()  -> Result<SolrResult<Value>, RSCError> {
+//! use rsolr::Client;
+//! use rsolr::error::RSolrError;
+//! use rsolr::solr_result::SolrResult;
+//! fn more_like_this()  -> Result<SolrResult<Value>, RSolrError> {
 //!     let result = Client::new("http://solr:8983", "collection")
 //!         .request_handler("mlt")
 //!         .add_query_param("mlt.fl", "similarity_field")
@@ -97,7 +97,7 @@ use serde_json::{json, Value};
 
 #[double]
 use http_client::HttpClient;
-use crate::error::RSCError;
+use crate::error::RSolrError;
 use crate::solr_result::SolrResult;
 
 
@@ -198,7 +198,7 @@ impl<'a> Client<'a> {
     }
 
     /// Runs the prepared request and fetches response to the type specified as a generic. Responds Result which contains SolrResult, the response part of Solr response.
-    pub fn run<T: for<'de> Deserialize<'de> + Clone>(&mut self) -> Result<Option<SolrResult<T>>, RSCError> {
+    pub fn run<T: for<'de> Deserialize<'de> + Clone>(&mut self) -> Result<Option<SolrResult<T>>, RSolrError> {
         let solr_result = match self.payload.clone() {
             Payload::Body(body) => HttpClient::new().post(self.url_str(), Some(body)),
             Payload::Empty => HttpClient::new().post(self.url_str(), None),
@@ -207,7 +207,7 @@ impl<'a> Client<'a> {
 
         let response = match solr_result {
             Ok(response) => response,
-            Err(e) => return Err(RSCError { source: Some(Box::new(e)), status: None, message: None }),
+            Err(e) => return Err(RSolrError { source: Some(Box::new(e)), status: None, message: None }),
         };
 
         self.url.query_pairs_mut().clear();
@@ -253,29 +253,29 @@ impl<'a> Client<'a> {
         self
     }
 
-    fn handle_response<T: for<'de> Deserialize<'de> + Clone>(&self, response: Response) -> Result<solr_result::SolrResponse<T>, RSCError> {
+    fn handle_response<T: for<'de> Deserialize<'de> + Clone>(&self, response: Response) -> Result<solr_result::SolrResponse<T>, RSolrError> {
         match response.status() {
             StatusCode::OK => {
                 match response.json::<solr_result::SolrResponse<T>>() {
                     Ok(response) => Ok(response),
-                    Err(e) => return Err(RSCError { source: Some(Box::new(e)), status: None, message: None }),
+                    Err(e) => return Err(RSolrError { source: Some(Box::new(e)), status: None, message: None }),
                 }
             },
-            StatusCode::NOT_FOUND => return Err(RSCError { source: None, status: Some(StatusCode::NOT_FOUND), message: None }),
+            StatusCode::NOT_FOUND => return Err(RSolrError { source: None, status: Some(StatusCode::NOT_FOUND), message: None }),
             other_status => {
                 let body_text = response.text().unwrap();
                 let message_string = match serde_json::from_str::<Value>(&body_text) {
                     Ok(r) => r["error"]["msg"].to_string(),
                     Err(e) => {
                         return Err(
-                            RSCError {
+                            RSolrError {
                                 source: Some(Box::new(e)),
                                 status: Some(other_status),
                                 message: Some(body_text)
                             })
                     }
                 };
-                return Err(RSCError { source: None, status: Some(other_status), message: Some(message_string.replace("\"", "")) })
+                return Err(RSolrError { source: None, status: Some(other_status), message: Some(message_string.replace("\"", "")) })
             }
         }
     }
@@ -392,7 +392,7 @@ mod tests {
     }
 
     #[test]
-    fn test_select_responds_rsc_error_with_other_problem_if_dunno() {
+    fn test_select_responds_rsolr_error_with_other_problem_if_dunno() {
         let _m = get_lock(&MTX);
         let ctx = HttpClient::new_context();
 
@@ -415,7 +415,7 @@ mod tests {
     }
 
     #[test]
-    fn test_select_responds_rsc_error_with_raw_text_body_and_status_code_if_no_standard_message() {
+    fn test_select_responds_rsolr_error_with_raw_text_body_and_status_code_if_no_standard_message() {
         let _m = get_lock(&MTX);
         let ctx = HttpClient::new_context();
         ctx.expect().returning(|| {
@@ -437,7 +437,7 @@ mod tests {
     }
 
     #[test]
-    fn test_create_responds_rsc_error_with_other_problem_if_dunno() {
+    fn test_create_responds_rsolr_error_with_other_problem_if_dunno() {
         let _m = get_lock(&MTX);
         let ctx = HttpClient::new_context();
         ctx.expect().returning(|| {
@@ -460,7 +460,7 @@ mod tests {
     }
 
     #[test]
-    fn test_create_responds_rsc_error_with_raw_text_body_and_status_code_if_no_standard_message() {
+    fn test_create_responds_rsolr_error_with_raw_text_body_and_status_code_if_no_standard_message() {
         let _m = get_lock(&MTX);
         let ctx = HttpClient::new_context();
         ctx.expect().returning(|| {
@@ -483,7 +483,7 @@ mod tests {
     }
 
     #[test]
-    fn test_delete_responds_rsc_error_with_other_problem_if_dunno() {
+    fn test_delete_responds_rsolr_error_with_other_problem_if_dunno() {
         let _m = get_lock(&MTX);
         let ctx = HttpClient::new_context();
         ctx.expect().returning(|| {
@@ -506,7 +506,7 @@ mod tests {
     }
 
     #[test]
-    fn test_delete_responds_rsc_error_with_raw_text_body_and_status_code_if_no_standard_message() {
+    fn test_delete_responds_rsolr_error_with_raw_text_body_and_status_code_if_no_standard_message() {
         let _m = get_lock(&MTX);
         let ctx = HttpClient::new_context();
         ctx.expect().returning(|| {

@@ -1,4 +1,4 @@
-use rsc::{Client};
+use rsolr::{Client};
 use reqwest::blocking::Client as HttpClient;
 use reqwest::header::CONTENT_TYPE;
 use std::error::Error;
@@ -84,7 +84,7 @@ fn test_query_returns_error_if_cannot_serialize() -> Result<(), reqwest::Error> 
 }
 
 #[test]
-fn test_query_responds_rsc_error_with_embedded_network_error() {
+fn test_query_responds_rsolr_error_with_embedded_network_error() {
     let _m = get_lock(&MTX);
     let collection = "default";
     let host = "http://not_existing_host:8983";
@@ -92,12 +92,12 @@ fn test_query_responds_rsc_error_with_embedded_network_error() {
     assert!(result.is_err());
     let error = result.err().expect("No Error");
     let original_error_message = error.source().expect("no source error").to_string();
-    assert!(matches!(error.kind(), rsc::error::ErrorKind::Network));
+    assert!(matches!(error.kind(), rsolr::error::ErrorKind::Network));
     assert_eq!(original_error_message.contains("dns error"), true)
 }
 
 #[test]
-fn test_query_responds_rsc_error_with_embedded_no_collection_error() {
+fn test_query_responds_rsolr_error_with_embedded_no_collection_error() {
     let _m = get_lock(&MTX);
     let collection = "not_existing_collection";
     let host = "http://localhost:8983";
@@ -105,12 +105,12 @@ fn test_query_responds_rsc_error_with_embedded_no_collection_error() {
     assert!(result.is_err());
     let error = result.err().expect("No Error");
     assert_eq!(error.status().unwrap(), StatusCode::NOT_FOUND);
-    assert!(matches!(error.kind(), rsc::error::ErrorKind::NotFound));
+    assert!(matches!(error.kind(), rsolr::error::ErrorKind::NotFound));
     assert!(error.source().is_none());
 }
 
 #[test]
-fn test_query_responds_rsc_error_with_solr_problem_if_query_is_bad() {
+fn test_query_responds_rsolr_error_with_solr_problem_if_query_is_bad() {
     let _m = get_lock(&MTX);
     let collection = "default";
     let host = "http://localhost:8983";
@@ -118,7 +118,7 @@ fn test_query_responds_rsc_error_with_solr_problem_if_query_is_bad() {
     assert!(result.is_err());
     let error = result.err().expect("No Error");
     assert_eq!(error.status().unwrap(), StatusCode::BAD_REQUEST);
-    matches!(error.kind(), rsc::error::ErrorKind::SolrSyntax);
+    matches!(error.kind(), rsolr::error::ErrorKind::SolrSyntax);
     assert!(error.source().is_none());
     assert_eq!(error.message(), Some("undefined field bad"));
 }
@@ -190,7 +190,7 @@ fn test_create_without_auto_commit_uploads_document_and_index_on_separated_commi
 }
 
 #[test]
-fn test_create_responds_rsc_error_with_embedded_network_error() {
+fn test_create_responds_rsolr_error_with_embedded_network_error() {
     let _m = get_lock(&MTX);
     let collection = "default";
     let host = "http://not_existing_host:8983";
@@ -200,12 +200,12 @@ fn test_create_responds_rsc_error_with_embedded_network_error() {
     assert!(result.is_err());
     let error = result.err().expect("No Error");
     let original_error_message = error.source().expect("no source error").to_string();
-    assert!(matches!(error.kind(), rsc::error::ErrorKind::Network));
+    assert!(matches!(error.kind(), rsolr::error::ErrorKind::Network));
     assert_eq!(original_error_message.contains("dns error"), true)
 }
 
 #[test]
-fn test_create_responds_rsc_error_with_embedded_no_collection_error() {
+fn test_create_responds_rsolr_error_with_embedded_no_collection_error() {
     let _m = get_lock(&MTX);
     let collection = "not_existing_collection";
     let host = "http://localhost:8983";
@@ -217,7 +217,7 @@ fn test_create_responds_rsc_error_with_embedded_no_collection_error() {
     assert!(result.is_err());
     let error = result.err().expect("No Error");
     assert_eq!(error.status().unwrap(), StatusCode::NOT_FOUND);
-    assert!(matches!(error.kind(), rsc::error::ErrorKind::NotFound));
+    assert!(matches!(error.kind(), rsolr::error::ErrorKind::NotFound));
     assert!(error.source().is_none());
 }
 
@@ -292,7 +292,7 @@ fn test_without_autocommit_delete_deletes_docs_after_commit_specified_by_query()
 }
 
 #[test]
-fn test_delete_responds_rsc_error_with_embedded_network_error() {
+fn test_delete_responds_rsolr_error_with_embedded_network_error() {
     let _m = get_lock(&MTX);
     let collection = "default";
     let host = "http://not_existing_host:8983";
@@ -300,12 +300,12 @@ fn test_delete_responds_rsc_error_with_embedded_network_error() {
     assert!(result.is_err());
     let error = result.err().expect("No Error");
     let original_error_message = error.source().expect("no source error").to_string();
-    assert!(matches!(error.kind(), rsc::error::ErrorKind::Network));
+    assert!(matches!(error.kind(), rsolr::error::ErrorKind::Network));
     assert_eq!(original_error_message.contains("dns error"), true)
 }
 
 #[test]
-fn test_delete_responds_rsc_error_with_embedded_no_collection_error() {
+fn test_delete_responds_rsolr_error_with_embedded_no_collection_error() {
     let _m = get_lock(&MTX);
     let collection = "not_existing_collection";
     let host = "http://localhost:8983";
@@ -313,12 +313,12 @@ fn test_delete_responds_rsc_error_with_embedded_no_collection_error() {
     assert!(result.is_err());
     let error = result.err().expect("No Error");
     assert_eq!(error.status().unwrap(), StatusCode::NOT_FOUND);
-    assert!(matches!(error.kind(), rsc::error::ErrorKind::NotFound));
+    assert!(matches!(error.kind(), rsolr::error::ErrorKind::NotFound));
     assert!(error.source().is_none());
 }
 
 #[test]
-fn test_delete_responds_rsc_error_with_solr_problem_if_query_is_bad() {
+fn test_delete_responds_rsolr_error_with_solr_problem_if_query_is_bad() {
     let _m = get_lock(&MTX);
     let collection = "default";
     let host = "http://localhost:8983";
@@ -326,7 +326,7 @@ fn test_delete_responds_rsc_error_with_solr_problem_if_query_is_bad() {
     assert!(result.is_err());
     let error = result.err().expect("No Error");
     assert_eq!(error.status().unwrap(), StatusCode::BAD_REQUEST);
-    matches!(error.kind(), rsc::error::ErrorKind::SolrSyntax);
+    matches!(error.kind(), rsolr::error::ErrorKind::SolrSyntax);
     assert!(error.source().is_none());
     assert_eq!(error.message(), Some("undefined field bad"));
 }

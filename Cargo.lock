@@ -719,7 +719,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "rsc"
+name = "rsolr"
 version = "0.1.0"
 dependencies = [
  "http",
