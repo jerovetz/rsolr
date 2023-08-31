@@ -10,7 +10,7 @@ pub struct Response<T> {
 }
 
 #[derive(Deserialize, Clone)]
-pub struct SolrRawResponse<T> where T: Clone {
+pub struct SolrResponse<T> where T: Clone {
     #[serde(default = "empty_result")]
     pub response: Option<Response<T>>,
 }

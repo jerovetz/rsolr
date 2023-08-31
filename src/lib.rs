@@ -252,10 +252,10 @@ impl<'a> Client<'a> {
         self
     }
 
-    fn handle_response<T: for<'de> Deserialize<'de> + Clone>(&self, response: HttpResponse) -> Result<solr_response::SolrRawResponse<T>, RSolrError> {
+    fn handle_response<T: for<'de> Deserialize<'de> + Clone>(&self, response: HttpResponse) -> Result<solr_response::SolrResponse<T>, RSolrError> {
         match response.status() {
             StatusCode::OK => {
-                match response.json::<solr_response::SolrRawResponse<T>>() {
+                match response.json::<solr_response::SolrResponse<T>>() {
                     Ok(response) => Ok(response),
                     Err(e) => return Err(RSolrError { source: Some(Box::new(e)), status: None, message: None }),
                 }
