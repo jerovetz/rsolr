@@ -14,9 +14,9 @@ for them. It uses the blocking version of the reqwest http client.
  use serde_json::Value;
  use rsolr::Client;
  use rsolr::error::RSolrError;
- use rsolr::solr_result::SolrResult;
+ use rsolr::solr_result::SolrResponse;
 
- fn query_all() -> Result<SolrResult<Value>, RSolrError> {
+ fn query_all() -> Result<SolrResponse<Value>, RSolrError> {
      let result = Client::new("http://solr:8983", "collection")
          .select("*:*")
          .run::<Value>();
@@ -70,8 +70,8 @@ for them. It uses the blocking version of the reqwest http client.
  use serde_json::Value;
  use rsolr::Client;
  use rsolr::error::RSolrError;
- use rsolr::solr_result::SolrResult;
- fn more_like_this()  -> Result<SolrResult<Value>, RSolrError> {
+ use rsolr::solr_result::SolrResponse;
+ fn more_like_this()  -> Result<SolrResponse<Value>, RSolrError> {
      let result = Client::new("http://solr:8983", "collection")
          .request_handler("mlt")
          .add_query_param("mlt.fl", "similarity_field")
