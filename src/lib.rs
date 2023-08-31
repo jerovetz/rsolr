@@ -19,7 +19,7 @@
 //!         .select("*:*")
 //!         .run::<Value>();
 //!     match result {
-//!         Ok(solr_result) => Ok(solr_result.expect("Request is OK, but no response; in select it's a failure on Solr side.")),
+//!         Ok(solr_result) => Ok(solr_result.response.expect("Request is OK, but no response; in select it's a failure on Solr side.")),
 //!         Err(e) => Err(e)
 //!     }
 //! }
@@ -77,7 +77,7 @@
 //!         .add_query_param("mlt.minwl", "3")
 //!         .run::<Value>();
 //!     match result {
-//!         Ok(solr_result) => Ok(solr_result.expect("Request is OK, but no response; in select it's a failure on Solr side.")),
+//!         Ok(solr_result) => Ok(solr_result.response.expect("Request is OK, but no response; in select it's a failure on Solr side.")),
 //!         Err(e) => Err(e)
 //!     }
 //! }
@@ -98,7 +98,7 @@ use serde_json::{json, Value};
 #[double]
 use http_client::HttpClient;
 use crate::error::RSolrError;
-use crate::solr_response::Response;
+use crate::solr_response::SolrResponse;
 
 
 /// The Payload defines the request method. Body and Empty sets method to POST, None uses GET.
@@ -135,6 +135,14 @@ impl<'a> Client<'a> {
     /// Adds custom GET query parameter to the Solr query.
     pub fn add_query_param(&mut self, key: &str, value: &str) -> &mut Self {
         self.url.query_pairs_mut().append_pair(key, value);
+        self
+    }
+
+    pub fn add_facet_field(&mut self, field: &str) -> &mut Self {
+        self.url
+            .query_pairs_mut()
+            .append_pair("facet", "on")
+            .append_pair("facet_field", field);
         self
     }
 
@@ -197,7 +205,7 @@ impl<'a> Client<'a> {
     }
 
     /// Runs the prepared request and fetches response to the type specified. Responds Result which contains SolrResult, the response part of Solr response.
-    pub fn run<T: for<'de> Deserialize<'de> + Clone>(&mut self) -> Result<Option<Response<T>>, RSolrError> {
+    pub fn run<T: for<'de> Deserialize<'de> + Clone>(&mut self) -> Result<SolrResponse<T>, RSolrError> {
         let solr_result = match self.payload.clone() {
             Payload::Body(body) => HttpClient::new().post(self.url_str(), Some(body)),
             Payload::Empty => HttpClient::new().post(self.url_str(), None),
@@ -211,7 +219,7 @@ impl<'a> Client<'a> {
 
         self.url.query_pairs_mut().clear();
 
-        self.handle_response::<T>(response).map(|r| r.response)
+        self.handle_response::<T>(response)
     }
 
     /// Shorthand for query.
@@ -252,10 +260,10 @@ impl<'a> Client<'a> {
         self
     }
 
-    fn handle_response<T: for<'de> Deserialize<'de> + Clone>(&self, response: HttpResponse) -> Result<solr_response::SolrResponse<T>, RSolrError> {
+    fn handle_response<T: for<'de> Deserialize<'de> + Clone>(&self, response: HttpResponse) -> Result<SolrResponse<T>, RSolrError> {
         match response.status() {
             StatusCode::OK => {
-                match response.json::<solr_response::SolrResponse<T>>() {
+                match response.json::<SolrResponse<T>>() {
                     Ok(response) => Ok(response),
                     Err(e) => return Err(RSolrError { source: Some(Box::new(e)), status: None, message: None }),
                 }
@@ -282,6 +290,7 @@ impl<'a> Client<'a> {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::HashMap;
     use super::*;
 
     use std::sync::{Mutex, MutexGuard};
@@ -336,7 +345,7 @@ mod tests {
     }
 
     #[test]
-    fn test_run_calls_get_with_url() {
+    fn test_run_calls_get() {
         let _m = get_lock(&MTX);
 
         let ctx = HttpClient::new_context();
@@ -359,7 +368,50 @@ mod tests {
             .query("*:*")
             .run::<Value>();
         assert!(result.is_ok());
-        assert_eq!(result.unwrap().unwrap().docs[0]["success"], true);
+        assert_eq!(result.unwrap().response.unwrap().docs[0]["success"], true);
+    }
+
+    #[test]
+    fn test_run_calls_get_with_single_facet() {
+        let _m = get_lock(&MTX);
+
+        let ctx = HttpClient::new_context();
+        ctx.expect().returning(|| {
+            let mut mock = HttpClient::default();
+            mock.expect_get()
+                .with(eq("http://localhost:8983/solr/default/select?q=*%3A*&facet=on&facet_field=exists"))
+                .returning(|_| Ok(reqwest::blocking::Response::from(http::response::Builder::new()
+                    .status(200)
+                    .body(r#"{
+                            "response": {"numFound": 1,"numFoundExact": true,"start": 0,"docs": [{"success": true }]},
+                            "facet_counts": {
+                                "facet_queries": {},
+                                "facet_fields": {
+                                    "exists": [
+                                        "term1", 23423, "term2", 993939
+                                    ]
+                                },
+                                "facet_ranges":{},
+                                "facet_intervals":{},
+                                "facet_heatmaps":{}
+                            }
+                        }"#)
+                    .unwrap())));
+            mock
+        });
+
+        let collection = "default";
+        let host = "http://localhost:8983";
+        let mut command = Client::new(host, collection);
+        let result = command
+            .request_handler("select")
+            .query("*:*")
+            .add_facet_field("exists")
+            .run::<Value>();
+        assert!(result.is_ok());
+        let facets = result.unwrap().facet_counts.unwrap();
+        assert_eq!(facets.facet_queries, HashMap::new());
+        assert_eq!(facets.facet_fields, serde_json::from_str::<Value>(r#"{"exists":["term1", 23423,"term2",993939]}"#).unwrap());
     }
 
     #[test]
@@ -387,7 +439,7 @@ mod tests {
             .set_document(json!({ "this is": "a document"}))
             .run::<Value>();
         assert!(result.is_ok());
-        assert_eq!(result.unwrap().unwrap().docs[0]["success"], true);
+        assert_eq!(result.unwrap().response.unwrap().docs[0]["success"], true);
     }
 
     #[test]

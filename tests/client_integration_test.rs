@@ -54,7 +54,7 @@ fn test_query_document_value_returned() -> Result<(), reqwest::Error> {
         .send()?;
 
     let result = Client::new(host, collection).select("*:*").run::<Value>();
-    assert_eq!(result.unwrap().unwrap().docs.get(0).unwrap().get("egerke").unwrap().get(0).unwrap(), "okapi");
+    assert_eq!(result.unwrap().response.unwrap().docs.get(0).unwrap().get("egerke").unwrap().get(0).unwrap(), "okapi");
     empty_collection(host).ok();
     Ok(())
 }
@@ -139,7 +139,7 @@ fn test_create_with_auto_commit_inserts_document() {
         .ok();
 
     let result = client.select("*:*").run::<Value>();
-    assert_eq!(result.unwrap().unwrap().docs[0]["okapi"][0], "egerke");
+    assert_eq!(result.unwrap().response.unwrap().docs[0]["okapi"][0], "egerke");
     empty_collection(base_url).ok();
 }
 
@@ -160,7 +160,7 @@ fn test_create_inserts_any_serializable_document() {
         .ok();
 
     let result = client.select("*:*").run::<Value>();
-    assert_eq!(result.unwrap().unwrap().docs[0]["desire"][0], "sausage");
+    assert_eq!(result.unwrap().response.unwrap().docs[0]["desire"][0], "sausage");
     empty_collection(base_url).ok();
 }
 
@@ -180,12 +180,12 @@ fn test_create_without_auto_commit_uploads_document_and_index_on_separated_commi
         .ok();
 
     let result = client.select("*:*").run::<Value>();
-    assert_eq!(result.unwrap().unwrap().docs.len(), 0);
+    assert_eq!(result.unwrap().response.unwrap().docs.len(), 0);
 
     client.commit().run::<Value>().ok();
 
     let result = client.select("*:*").run::<Value>();
-    assert_eq!(result.unwrap().unwrap().docs[0]["okapi"][0], "egerke");
+    assert_eq!(result.unwrap().response.unwrap().docs[0]["okapi"][0], "egerke");
     empty_collection(host).ok();
 }
 
@@ -239,7 +239,7 @@ fn test_delete_deletes_docs() {
         .run::<Value>();
 
     assert!(result.is_ok());
-    let docs = client.select("*:*").run::<Value>().unwrap().unwrap().docs;
+    let docs = client.select("*:*").run::<Value>().unwrap().response.unwrap().docs;
     assert_eq!(docs.len(), 0);
 
     empty_collection(host).ok();
@@ -261,7 +261,7 @@ fn test_delete_deletes_docs_specified_by_query() {
         .run::<Value>();
 
     assert!(result.is_ok());
-    let docs = client.select("*:*").run::<Value>().unwrap().unwrap().docs;
+    let docs = client.select("*:*").run::<Value>().unwrap().response.unwrap().docs;
     assert_eq!(docs[0]["okapi"][0], "another egerke");
 
     empty_collection(host).ok();
@@ -280,12 +280,12 @@ fn test_without_autocommit_delete_deletes_docs_after_commit_specified_by_query()
 
     client.delete("okapi: another egerke").run::<Value>().ok();
 
-    let docs = client.select("*:*").run::<Value>().unwrap().unwrap().docs;
+    let docs = client.select("*:*").run::<Value>().unwrap().response.unwrap().docs;
     assert_eq!(docs[0]["okapi"][0], "another egerke");
 
     client.commit().run::<Value>().ok();
 
-    let docs = client.select("*:*").run::<Value>().unwrap().unwrap().docs;
+    let docs = client.select("*:*").run::<Value>().unwrap().response.unwrap().docs;
     assert_ne!(docs[0]["okapi"][0], "another egerke");
 
     empty_collection(host).ok();
