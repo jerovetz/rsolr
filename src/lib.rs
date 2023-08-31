@@ -83,10 +83,10 @@
 //! }
 //! ```
 
-
 pub mod error;
-mod http_client;
 pub mod solr_response;
+mod facet_fields;
+mod http_client;
 
 use serde::{Deserialize, Serialize};
 use http::StatusCode;
@@ -409,7 +409,7 @@ mod tests {
             .run::<Value>();
         assert!(result.is_ok());
         let facets = result.unwrap().facet_counts.unwrap();
-        assert_eq!(facets.facet_fields, serde_json::from_str::<Value>(r#"{"exists":["term1", 23423,"term2",993939]}"#).unwrap());
+        assert_eq!(facets.facet_fields.fields, serde_json::from_str::<Value>(r#"{"exists":["term1", 23423,"term2",993939]}"#).unwrap());
     }
 
     #[test]

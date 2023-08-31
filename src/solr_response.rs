@@ -1,5 +1,7 @@
+
 use serde::{Deserialize};
 use serde_json::Value;
+use crate::facet_fields::FacetFields;
 
 /// The wrapper of the successful response. It holds the response of the [JSON Response Writer](https://solr.apache.org/guide/8_1/response-writers.html#json-response-writer).
 #[derive(Deserialize, Clone, Debug)]
@@ -14,7 +16,7 @@ pub struct Response<T> {
 #[derive(Deserialize, Clone, Debug)]
 pub struct Facet {
     pub facet_queries: Value,
-    pub facet_fields: Value
+    pub facet_fields: FacetFields
 }
 
 #[derive(Deserialize, Clone, Debug)]
