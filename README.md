@@ -55,7 +55,7 @@ for them. It uses the blocking version of the reqwest http client.
  use serde_json::Value;
  use rsolr::Client;
  fn delete() {
-     Client::new("http::/solr:8983", "collection")
+     Client::new("http://solr:8983", "collection")
          .delete("delete:query")
          .run::<Value>().expect("panic, request failed.");
  }
