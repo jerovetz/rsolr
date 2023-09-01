@@ -6,6 +6,7 @@ use serde_json::Value;
 pub struct FacetFields {
     #[serde(flatten)]
     pub fields: Value,
+    #[serde(skip)]
     field_value: String
 }
 
