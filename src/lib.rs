@@ -181,6 +181,12 @@ impl<'a> Client<'a> {
         self
     }
 
+    /// Shorthand for 'df' parameter.
+    pub fn default_field(&mut self, default_field: &str) -> &mut Self {
+        self.add_query_param("df", default_field);
+        self
+    }
+
     /// Generates the request url as string without sending.
     pub fn url_str(&self) -> &str {
         self.url.as_str()
@@ -341,6 +347,17 @@ mod tests {
 
         let url_string = params.url_str();
         assert_eq!(url_string, "http://host:8983/solr/collection/request_handler?start=135545&rows=12");
+    }
+
+    #[test]
+    fn test_build_a_url_with_default_field() {
+        let mut params = Client::new("http://host:8983", "collection");
+        params
+            .request_handler("request_handler")
+            .default_field("defaultfield");
+
+        let url_string = params.url_str();
+        assert_eq!(url_string, "http://host:8983/solr/collection/request_handler?df=defaultfield");
     }
 
     #[test]
