@@ -27,6 +27,16 @@ impl Term {
         self
     }
 
+    pub fn required(&mut self) -> &mut Self {
+        self.term = format!("+{}", self.term);
+        self
+    }
+
+    pub fn prohibit(&mut self) -> &mut Self {
+        self.term = format!("-{}", self.term);
+        self
+    }
+
     pub fn as_str(&self) -> String {
         match &self.field {
             Some(field) => format!("{}: {}", field, self.term),
@@ -72,6 +82,20 @@ mod tests {
         let mut term = Term::from_str("term term");
         let term_str = term.boost(3.2).tilde(20).as_str();
         assert_eq!(term_str, "\"term term\"^3.2~20");
+    }
+
+    #[test]
+    fn test_require_term() {
+        let mut term = Term::from_str("term");
+        let term_str = term.required().as_str();
+        assert_eq!(term_str, "+term");
+    }
+
+    #[test]
+    fn test_prohibit_term() {
+        let mut term = Term::from_str("term");
+        let term_str = term.prohibit().as_str();
+        assert_eq!(term_str, "-term");
     }
 
 }
