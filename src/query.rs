@@ -1,15 +1,70 @@
+pub trait Stringable {
+    fn as_str(&self) -> String;
+}
+
+pub struct And {}
+impl Stringable for And {
+    fn as_str(&self) -> String {
+        "AND".to_owned()
+    }
+}
+
+pub struct Or {}
+impl Stringable for Or {
+    fn as_str(&self) -> String {
+        "OR".to_owned()
+    }
+}
+
 pub struct Query {
     parts: Vec<Box<dyn Stringable>>
 }
 
+impl Query {
+
+    pub fn from_term(term: Term) -> Self {
+        let mut parts: Vec<Box<dyn Stringable>> = Vec::new();
+        parts.push(Box::new(term));
+        Query { parts }
+    }
+
+    pub fn term(&mut self, term: Term) -> &mut Self {
+        self.parts.push(Box::new(term));
+        self
+    }
+
+    pub fn and(&mut self) -> &mut Self {
+        self.parts.push(Box::new(And {}));
+        self
+    }
+
+    pub fn or(&mut self) -> &mut Self {
+        self.parts.push(Box::new(Or {}));
+        self
+    }
+}
+
+impl Stringable for Query {
+    fn as_str(&self) -> String {
+        let mut query = "".to_owned();
+        for (_, item) in self.parts.iter().enumerate() {
+            query = match query.len() {
+                0 => item.as_str(),
+                _ => format!("{} {}", query, item.as_str())
+            }
+        }
+        query
+    }
+}
+
+
+#[derive(Debug)]
 pub struct Term {
     term: String,
     field: Option<String>
 }
 
-pub trait Stringable {
-    fn as_str(&self) -> String;
-}
+
 
 impl Term {
 
@@ -140,7 +195,34 @@ impl<'a> Stringable for Range<'a> {
 }
 
 mod tests {
-    use crate::query::{Date, Range, Term, Stringable};
+    use crate::query::{Date, Range, Term, Stringable, Query};
+
+    #[test]
+    fn test_query_create_from_a_single_term() {
+        let term = Term::from_str("*:*");
+        assert_eq!(Query::from_term(term).as_str(), "*:*");
+    }
+
+    #[test]
+    fn test_query_concat_two_terms() {
+        let term = Term::from_str("*:*");
+        let term2 = Term::from_str("another term");
+        assert_eq!(Query::from_term(term).term(term2).as_str(), "*:* \"another term\"");
+    }
+
+    #[test]
+    fn test_query_concat_two_terms_with_and() {
+        let term = Term::from_str("*:*");
+        let term2 = Term::from_str("another term");
+        assert_eq!(Query::from_term(term).and().term(term2).as_str(), "*:* AND \"another term\"");
+    }
+
+    #[test]
+    fn test_query_concat_two_terms_with_or() {
+        let term = Term::from_str("*:*");
+        let term2 = Term::from_str("another term");
+        assert_eq!(Query::from_term(term).or().term(term2).as_str(), "*:* OR \"another term\"");
+    }
 
     #[test]
     fn test_term_as_str_returns_term_as_str_in_quotes() {
