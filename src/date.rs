@@ -33,12 +33,12 @@ impl Date  {
     }
 
     pub fn plus(&mut self, duration: &str) -> &mut Self {
-        self.date.push_str(&*("+".to_owned() + duration));
+        self.date = format!("{}+{}", self.date, duration);
         self
     }
 
     pub fn minus(&mut self, duration: &str) -> &mut Self {
-        self.date.push_str(&*("-".to_owned() + duration));
+        self.date = format!("{}-{}", self.date, duration);
         self
     }
 

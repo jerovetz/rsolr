@@ -88,6 +88,7 @@ pub mod solr_response;
 mod facet_fields;
 mod http_client;
 mod date;
+mod range;
 
 use serde::{Deserialize, Serialize};
 use http::StatusCode;
