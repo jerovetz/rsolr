@@ -26,7 +26,6 @@ impl<'a> Range<'a> {
         }
 
         format!("{{{} TO {}}}",self.from, self.to)
-
     }
 
 }
