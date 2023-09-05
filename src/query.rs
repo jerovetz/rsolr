@@ -1,5 +1,6 @@
 pub trait Stringable {
     fn as_str(&self) -> String;
+    fn is_query(&self) -> bool;
 }
 
 pub struct And {}
@@ -7,12 +8,20 @@ impl Stringable for And {
     fn as_str(&self) -> String {
         "AND".to_owned()
     }
+
+    fn is_query(&self) -> bool {
+        false
+    }
 }
 
 pub struct Or {}
 impl Stringable for Or {
     fn as_str(&self) -> String {
         "OR".to_owned()
+    }
+
+    fn is_query(&self) -> bool {
+        false
     }
 }
 
@@ -28,20 +37,26 @@ impl Query {
         Query { parts }
     }
 
-    pub fn term(&mut self, term: Term) -> &mut Self {
+    pub fn term(mut self, term: Term) -> Self {
         self.parts.push(Box::new(term));
         self
     }
 
-    pub fn and(&mut self) -> &mut Self {
+    pub fn and(mut self) -> Self {
         self.parts.push(Box::new(And {}));
         self
     }
 
-    pub fn or(&mut self) -> &mut Self {
+    pub fn or(mut self) -> Self {
         self.parts.push(Box::new(Or {}));
         self
     }
+
+    pub fn subquery(mut self, query: Query) -> Self {
+        self.parts.push(Box::new(query));
+        self
+    }
+
 }
 
 impl Stringable for Query {
@@ -50,21 +65,26 @@ impl Stringable for Query {
         for (_, item) in self.parts.iter().enumerate() {
             query = match query.len() {
                 0 => item.as_str(),
-                _ => format!("{} {}", query, item.as_str())
+                _ => {
+                    match item.is_query() {
+                        true => format!("{} ({})", query, item.as_str()),
+                        false => format!("{} {}", query, item.as_str())
+                    }
+                }
             }
         }
         query
     }
+
+    fn is_query(&self) -> bool {
+        true
+    }
 }
 
-
-#[derive(Debug)]
 pub struct Term {
     term: String,
     field: Option<String>
 }
-
-
 
 impl Term {
 
@@ -75,27 +95,27 @@ impl Term {
         Term{ term: term_str.to_owned(), field: None }
     }
 
-    pub fn in_field(&mut self, field: &str) -> &mut Self {
+    pub fn in_field(mut self, field: &str) -> Self {
         self.field = Some(field.to_owned());
         self
     }
 
-    pub fn boost(&mut self, value: f32) -> &mut Self {
+    pub fn boost(mut self, value: f32) -> Self {
         self.term = format!("{}^{}", self.term, value.to_string());
         self
     }
 
-    pub fn tilde(&mut self, value: u32) -> &mut Self {
+    pub fn tilde(mut self, value: u32) -> Self {
         self.term = format!("{}~{}", self.term, value.to_string());
         self
     }
 
-    pub fn required(&mut self) -> &mut Self {
+    pub fn required(mut self) -> Self {
         self.term = format!("+{}", self.term);
         self
     }
 
-    pub fn prohibit(&mut self) -> &mut Self {
+    pub fn prohibit(mut self) -> Self {
         self.term = format!("-{}", self.term);
         self
     }
@@ -107,6 +127,10 @@ impl Stringable for Term {
             Some(field) => format!("{}: {}", field, self.term),
             None => self.term.clone()
         }
+    }
+
+    fn is_query(&self) -> bool {
+        false
     }
 }
 
@@ -144,12 +168,12 @@ impl Date  {
         Date { date: date_string.to_owned() }
     }
 
-    pub fn plus(&mut self, duration: &str) -> &mut Self {
+    pub fn plus(mut self, duration: &str) -> Self {
         self.date = format!("{}+{}", self.date, duration);
         self
     }
 
-    pub fn minus(&mut self, duration: &str) -> &mut Self {
+    pub fn minus(mut self, duration: &str) -> Self {
         self.date = format!("{}-{}", self.date, duration);
         self
     }
@@ -158,6 +182,10 @@ impl Date  {
 impl Stringable for Date {
     fn as_str(&self) -> String {
         self.date.clone()
+    }
+
+    fn is_query(&self) -> bool {
+        false
     }
 }
 
@@ -192,6 +220,10 @@ impl<'a> Stringable for Range<'a> {
 
         format!("{{{} TO {}}}",self.from, self.to)
     }
+
+    fn is_query(&self) -> bool {
+        false
+    }
 }
 
 mod tests {
@@ -225,6 +257,17 @@ mod tests {
     }
 
     #[test]
+    fn test_query_concat_a_term_with_a_subquery() {
+        let term = Term::from_str("another term");
+        let query =
+            Query::from_term(Term::from_str("one_thing"))
+            .and()
+            .term(Term::from_str("another_thing"));
+
+        assert_eq!(Query::from_term(term).or().subquery(query).as_str(), "\"another term\" OR (one_thing AND another_thing)");
+    }
+
+    #[test]
     fn test_term_as_str_returns_term_as_str_in_quotes() {
         let term = "term term";
         assert_eq!(Term::from_str(term).as_str(), format!("\"{}\"", term));
@@ -240,8 +283,7 @@ mod tests {
     fn test_term_in_field_decorate_it_with_field() {
         let term_str = "term term";
         let mut term = Term::from_str(term_str);
-        term.in_field("field");
-        assert_eq!(term.as_str(), "field: \"term term\"");
+        assert_eq!(term.in_field("field").as_str(), "field: \"term term\"");
     }
 
     #[test]
@@ -283,8 +325,7 @@ mod tests {
         let date_string = "NOW";
         let expected = "NOW+2MONTHS";
         let mut date = Date::new(date_string);
-        date.plus(Date::month(2).as_str());
-        assert_eq!(date.as_str(), expected);
+        assert_eq!(date.plus(Date::month(2).as_str()).as_str(), expected);
     }
 
     #[test]
@@ -292,8 +333,7 @@ mod tests {
         let date_string = "NOW";
         let expected = "NOW-2YEARS";
         let mut date = Date::new(date_string);
-        date.minus(Date::year(2).as_str());
-        assert_eq!(date.as_str(), expected);
+        assert_eq!(date.minus(Date::year(2).as_str()).as_str(), expected);
     }
 
     #[test]
