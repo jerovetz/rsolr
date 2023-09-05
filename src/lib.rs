@@ -87,10 +87,7 @@ pub mod error;
 pub mod solr_response;
 mod facet_fields;
 mod http_client;
-mod date;
-mod range;
-mod term;
-
+mod query;
 use serde::{Deserialize, Serialize};
 use http::StatusCode;
 use url;
