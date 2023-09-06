@@ -4,7 +4,7 @@
 //! requests to the Solr server, and contains some shorthands
 //! for them. It uses the blocking version of the reqwest http client.
 //!
-//! ## Query
+//! ## Select
 //!
 //! You can retrieve documents as types with implemented `Clone` and `Deserialize`.
 //!
@@ -85,9 +85,9 @@
 
 pub mod error;
 pub mod solr_response;
+pub mod query;
 mod facet_fields;
 mod http_client;
-mod query;
 use serde::{Deserialize, Serialize};
 use http::StatusCode;
 use url;

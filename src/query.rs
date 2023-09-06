@@ -1,3 +1,28 @@
+//! You can build Solr queries with this module.
+//! For easy integration queries should be rendered to str at the end, if you want to use in the client.
+//! Currently it's rather cumbersome, on it.
+//!
+//! ```rust
+//!
+//! use rsolr::query::{Query, Range, Term, Stringable, Date};
+//! fn query() -> Query {
+//!     Query::from_term(
+//!         Term::from_str("simple").boost(2.3).tilde(3).required()
+//!         )
+//!         .term(Term::from_str("next to the first term").in_field("with_field_specification"))
+//!         .and()
+//!         .subquery(
+//!             Query::from_term(
+//!                 Term::from_str(&Range::inclusive("1", "1000").as_str()).in_field("popularity")
+//!                 )
+//!                 .or()
+//!                 .term(Term::from_str(&Range::inclusive(&Date::new("NOW").minus(&Date::month(2)).as_str(), "NOW").as_str()).in_field("created"))
+//!         )
+//! }
+//! ```
+//!
+//!
+
 pub trait Stringable {
     fn as_str(&self) -> String;
     fn is_query(&self) -> bool;
@@ -232,8 +257,9 @@ impl<'a> Stringable for Range<'a> {
     }
 }
 
+#[cfg(test)]
 mod tests {
-    use crate::query::{Date, Range, Term, Stringable, Query};
+    use super::*;
 
     #[test]
     fn test_query_create_from_str() {

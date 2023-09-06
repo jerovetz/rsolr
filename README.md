@@ -4,9 +4,10 @@ A Solr client for Rust.
 
 `Rsolr` provides capabilities to manipulate and form
 requests to the Solr server, and contains some shorthands
-for them. It uses the blocking version of the reqwest http client.
+for them, with support for some facet features and query builder. 
+It uses the blocking version of the reqwest http client.
 
- ## Query
+ ## Select
 
  You can retrieve documents as types with implemented `Clone` and `Deserialize`.
 
