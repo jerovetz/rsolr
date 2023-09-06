@@ -3,7 +3,7 @@ use serde::{Deserialize};
 use serde_json::Value;
 use crate::facet_fields::FacetFields;
 
-/// The wrapper of the successful response. It holds the response of the [JSON Response Writer](https://solr.apache.org/guide/8_1/response-writers.html#json-response-writer).
+/// The response part of the server response body.
 #[derive(Deserialize, Clone, Debug)]
 #[allow(non_snake_case)]
 pub struct Response<T> {
@@ -13,12 +13,14 @@ pub struct Response<T> {
     pub docs: Vec<T>
 }
 
+/// The facet part of the response. Fields are parsed, see there.
 #[derive(Deserialize, Clone, Debug)]
 pub struct Facet {
     pub facet_queries: Value,
     pub facet_fields: FacetFields
 }
 
+/// The rendered response body. It uses the default writer: [JSON Response Writer](https://solr.apache.org/guide/8_1/response-writers.html#json-response-writer).
 #[derive(Deserialize, Clone, Debug)]
 pub struct SolrResponse<T> where T: Clone {
     #[serde(default = "empty_response")]

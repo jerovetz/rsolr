@@ -2,23 +2,17 @@ use std::fmt::Debug;
 use serde::{Deserialize};
 use serde_json::Value;
 
+/// The fields part of the facets.
 #[derive(Clone, Debug, Deserialize)]
 pub struct FacetFields {
     #[serde(flatten)]
     pub fields: Value,
-    #[serde(skip)]
-    field: String
 }
 
 impl FacetFields {
 
-    pub fn field(&mut self, value: &str) -> &mut Self {
-        self.field = value.to_string();
-        self
-    }
-
-    pub fn get_all(&self) -> Option<Vec<&str>> {
-        let mut array_iter = match self.fields[&self.field].as_array() {
+    pub fn get_all_values_of(&self, field: &str) -> Option<Vec<&str>> {
+        let mut array_iter = match self.fields[field].as_array() {
             Some(ar) => ar.iter(),
             None => return None
         };
@@ -32,8 +26,8 @@ impl FacetFields {
         Some(all)
     }
 
-    pub fn get_count(&self, key: &str) -> Option<u64> {
-        let mut array_iter = match self.fields[&self.field].as_array() {
+    pub fn get_count(&self, field: &str, key: &str) -> Option<u64> {
+        let mut array_iter = match self.fields[field].as_array() {
             Some(ar) => ar.iter(),
             None => return None
         };
@@ -64,42 +58,42 @@ mod tests {
     #[test]
     fn test_get_custom_field_count() {
         let fields = serde_json::from_str(r#"{"field_value": ["val1", 123, "val2", 234] }"#).unwrap();
-        let mut facet_fields = FacetFields { fields, field: "".to_string() };
+        let mut facet_fields = FacetFields { fields };
 
-        assert_eq!(facet_fields.field("field_value").get_count("val2"), Some(234))
+        assert_eq!(facet_fields.get_count("field_value","val2"), Some(234))
     }
 
     #[test]
     fn test_returns_none_if_no_field() {
         let fields = serde_json::from_str(r#"{"field_value": ["val1", 123, "val2", 234] }"#).unwrap();
-        let mut facet_fields = FacetFields { fields, field: "".to_string() };
+        let mut facet_fields = FacetFields { fields };
 
-        assert_eq!(facet_fields.field("not_existing").get_count("val1"), None);
+        assert_eq!(facet_fields.get_count("not_existing","val1"), None);
     }
 
     #[test]
     fn test_returns_none_if_no_field_value() {
         let fields = serde_json::from_str(r#"{"field_value": ["val1", 123, "val2", 234] }"#).unwrap();
-        let mut facet_fields = FacetFields { fields, field: "".to_string() };
+        let mut facet_fields = FacetFields { fields };
 
-        assert_eq!(facet_fields.field("field_value").get_count("not_existing"), None);
+        assert_eq!(facet_fields.get_count("field_value", "not_existing"), None);
     }
 
     #[test]
     fn test_get_all_field_values() {
         let fields = serde_json::from_str(r#"{"field_value": ["val1", 123, "val2", 234] }"#).unwrap();
-        let mut facet_fields = FacetFields { fields, field: "".to_string() };
+        let mut facet_fields = FacetFields { fields };
 
         let expected_values = vec!["val1", "val2"];
 
-        assert_eq!(facet_fields.field("field_value").get_all(), Some(expected_values));
+        assert_eq!(facet_fields.get_all_values_of("field_value"), Some(expected_values));
     }
 
     #[test]
     fn test_get_all_none_from_notexisting_field() {
         let fields = serde_json::from_str(r#"{"field_value": ["val1", 123, "val2", 234] }"#).unwrap();
-        let mut facet_fields = FacetFields { fields, field: "".to_string() };
-        assert_eq!(facet_fields.field("field_value2342").get_all(), None);
+        let mut facet_fields = FacetFields { fields };
+        assert_eq!(facet_fields.get_all_values_of("field_value2342"), None);
     }
 
 }

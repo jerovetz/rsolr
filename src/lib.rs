@@ -147,6 +147,7 @@ impl<'a> Client<'a> {
         self.url.query_pairs_mut().append_pair("facet", "on");
     }
 
+    /// Shorthand for facet_field.
     pub fn facet_field(&mut self, field: &str) -> &mut Self {
         self.switch_on_facet();
         self.url
@@ -156,6 +157,7 @@ impl<'a> Client<'a> {
         self
     }
 
+    /// Shorthand for facet_query.
     pub fn facet_query(&mut self, query: &str) -> &mut Self {
         self.switch_on_facet();
         self.url
