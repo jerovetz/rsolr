@@ -138,11 +138,29 @@ impl<'a> Client<'a> {
         self
     }
 
-    pub fn add_facet_field(&mut self, field: &str) -> &mut Self {
+    fn switch_on_facet(&mut self) {
+        for query_pair in self.url.query_pairs() {
+            if query_pair.0 == "facet" && query_pair.1 == "on" {
+                return
+            }
+        }
+        self.url.query_pairs_mut().append_pair("facet", "on");
+    }
+
+    pub fn facet_field(&mut self, field: &str) -> &mut Self {
+        self.switch_on_facet();
         self.url
             .query_pairs_mut()
-            .append_pair("facet", "on")
             .append_pair("facet_field", field);
+
+        self
+    }
+
+    pub fn facet_query(&mut self, query: &str) -> &mut Self {
+        self.switch_on_facet();
+        self.url
+            .query_pairs_mut()
+            .append_pair("facet_query", query);
         self
     }
 
@@ -422,11 +440,137 @@ mod tests {
         let result = command
             .request_handler("select")
             .query("*:*")
-            .add_facet_field("exists")
+            .facet_field("exists")
             .run::<Value>();
         assert!(result.is_ok());
         let facets = result.unwrap().facet_counts.unwrap();
         assert_eq!(facets.facet_fields.fields, serde_json::from_str::<Value>(r#"{"exists":["term1", 23423,"term2",993939]}"#).unwrap());
+    }
+
+    #[test]
+    fn test_run_calls_get_with_facet_query() {
+        let _m = get_lock(&MTX);
+
+        let ctx = HttpClient::new_context();
+        ctx.expect().returning(|| {
+            let mut mock = HttpClient::default();
+            mock.expect_get()
+                .with(eq("http://localhost:8983/solr/default/select?q=*%3A*&facet=on&facet_query=anything%3A+*"))
+                .returning(|_| Ok(reqwest::blocking::Response::from(http::response::Builder::new()
+                    .status(200)
+                    .body(r#"{
+                            "response": {"numFound": 1,"numFoundExact": true,"start": 0,"docs": [{"success": true }]},
+                            "facet_counts": {
+                                "facet_queries": {
+                                    "anything: *": 324534
+                                },
+                                "facet_fields": {},
+                                "facet_ranges":{},
+                                "facet_intervals":{},
+                                "facet_heatmaps":{}
+                            }
+                        }"#)
+                    .unwrap())));
+            mock
+        });
+
+        let collection = "default";
+        let host = "http://localhost:8983";
+        let mut command = Client::new(host, collection);
+        let result = command
+            .request_handler("select")
+            .query("*:*")
+            .facet_query("anything: *")
+            .run::<Value>();
+        assert!(result.is_ok());
+        let facets = result.unwrap().facet_counts.unwrap();
+        assert_eq!(facets.facet_queries, serde_json::from_str::<Value>(r#"{"anything: *": 324534 }"#).unwrap());
+    }
+
+    #[test]
+    fn test_run_calls_get_with_facet_query_and_fields_with_a_single_facet_switch() {
+        let _m = get_lock(&MTX);
+
+        let ctx = HttpClient::new_context();
+        ctx.expect().returning(|| {
+            let mut mock = HttpClient::default();
+            mock.expect_get()
+                .with(eq("http://localhost:8983/solr/default/select?q=*%3A*&facet=on&facet_query=anything%3A+*&facet_field=exists"))
+                .returning(|_| Ok(reqwest::blocking::Response::from(http::response::Builder::new()
+                    .status(200)
+                    .body(r#"{
+                            "response": {"numFound": 1,"numFoundExact": true,"start": 0,"docs": [{"success": true }]},
+                            "facet_counts": {
+                                "facet_queries": {
+                                    "anything: *": 324534
+                                },
+                                "facet_fields": {
+                                   "exists": [
+                                        "term1", 23423, "term2", 993939
+                                    ]
+                                },
+                                "facet_ranges":{},
+                                "facet_intervals":{},
+                                "facet_heatmaps":{}
+                            }
+                        }"#)
+                    .unwrap())));
+            mock
+        });
+
+        let collection = "default";
+        let host = "http://localhost:8983";
+        let mut command = Client::new(host, collection);
+        let result = command
+            .request_handler("select")
+            .query("*:*")
+            .facet_query("anything: *")
+            .facet_field("exists")
+            .run::<Value>();
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_run_calls_get_with_facet_query_and_fields_with_a_single_facet_switch_facet_comes_first() {
+        let _m = get_lock(&MTX);
+
+        let ctx = HttpClient::new_context();
+        ctx.expect().returning(|| {
+            let mut mock = HttpClient::default();
+            mock.expect_get()
+                .with(eq("http://localhost:8983/solr/default/select?facet=on&facet_query=anything%3A+*&facet_field=exists&q=*%3A*"))
+                .returning(|_| Ok(reqwest::blocking::Response::from(http::response::Builder::new()
+                    .status(200)
+                    .body(r#"{
+                            "response": {"numFound": 1,"numFoundExact": true,"start": 0,"docs": [{"success": true }]},
+                            "facet_counts": {
+                                "facet_queries": {
+                                    "anything: *": 324534
+                                },
+                                "facet_fields": {
+                                   "exists": [
+                                        "term1", 23423, "term2", 993939
+                                    ]
+                                },
+                                "facet_ranges":{},
+                                "facet_intervals":{},
+                                "facet_heatmaps":{}
+                            }
+                        }"#)
+                    .unwrap())));
+            mock
+        });
+
+        let collection = "default";
+        let host = "http://localhost:8983";
+        let mut command = Client::new(host, collection);
+        let result = command
+            .request_handler("select")
+            .facet_query("anything: *")
+            .facet_field("exists")
+            .query("*:*")
+            .run::<Value>();
+        assert!(result.is_ok());
     }
 
     #[test]

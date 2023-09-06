@@ -31,6 +31,12 @@ pub struct Query {
 
 impl Query {
 
+    pub fn from_str(str: &str) -> Self {
+        let mut parts: Vec<Box<dyn Stringable>> = Vec::new();
+        parts.push(Box::new(Term::from_str(str)));
+        Query { parts }
+    }
+
     pub fn from_term(term: Term) -> Self {
         let mut parts: Vec<Box<dyn Stringable>> = Vec::new();
         parts.push(Box::new(term));
@@ -230,6 +236,11 @@ mod tests {
     use crate::query::{Date, Range, Term, Stringable, Query};
 
     #[test]
+    fn test_query_create_from_str() {
+        assert_eq!(Query::from_str("*:*").as_str(), "*:*");
+    }
+
+    #[test]
     fn test_query_create_from_a_single_term() {
         let term = Term::from_str("*:*");
         assert_eq!(Query::from_term(term).as_str(), "*:*");
@@ -282,34 +293,34 @@ mod tests {
     #[test]
     fn test_term_in_field_decorate_it_with_field() {
         let term_str = "term term";
-        let mut term = Term::from_str(term_str);
+        let term = Term::from_str(term_str);
         assert_eq!(term.in_field("field").as_str(), "field: \"term term\"");
     }
 
     #[test]
     fn test_term_boost_term_chained_with_field() {
-        let mut term = Term::from_str("term term");
+        let term = Term::from_str("term term");
         let term_str = term.in_field("field").boost(3.2).as_str();
         assert_eq!(term_str, "field: \"term term\"^3.2");
     }
 
     #[test]
     fn test_term_tilde_term_chained_with_boost() {
-        let mut term = Term::from_str("term term");
+        let term = Term::from_str("term term");
         let term_str = term.boost(3.2).tilde(20).as_str();
         assert_eq!(term_str, "\"term term\"^3.2~20");
     }
 
     #[test]
     fn test_term_require_term() {
-        let mut term = Term::from_str("term");
+        let term = Term::from_str("term");
         let term_str = term.required().as_str();
         assert_eq!(term_str, "+term");
     }
 
     #[test]
     fn test_term_prohibit_term() {
-        let mut term = Term::from_str("term");
+        let term = Term::from_str("term");
         let term_str = term.prohibit().as_str();
         assert_eq!(term_str, "-term");
     }
@@ -324,7 +335,7 @@ mod tests {
     fn test_date_plus_concat_text() {
         let date_string = "NOW";
         let expected = "NOW+2MONTHS";
-        let mut date = Date::new(date_string);
+        let date = Date::new(date_string);
         assert_eq!(date.plus(Date::month(2).as_str()).as_str(), expected);
     }
 
@@ -332,7 +343,7 @@ mod tests {
     fn test_date_minus_concat_text() {
         let date_string = "NOW";
         let expected = "NOW-2YEARS";
-        let mut date = Date::new(date_string);
+        let date = Date::new(date_string);
         assert_eq!(date.minus(Date::year(2).as_str()).as_str(), expected);
     }
 
