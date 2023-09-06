@@ -15,12 +15,17 @@
 //! use rsolr::solr_response::Response;
 //!
 //! fn query_all() -> Result<Response<Value>, RSolrError> {
-//!     let result = Client::new("http://solr:8983", "collection")
+//!     let mut client = Client::new("http://solr:8983", "collection");
+//!     let result = client
 //!         .select("*:*")
-//!         .run::<Value>();
-//!     match result {
-//!         Ok(solr_result) => Ok(solr_result.response.expect("Request is OK, but no response; in select it's a failure on Solr side.")),
-//!         Err(e) => Err(e)
+//!         .run();
+//!
+//!    match result {
+//!         Ok(solr_result) => {
+//!             let solr_result = client.get_response::<Value>();
+//!             Ok(solr_result.expect("Serialization failed").response.expect("Response is OK, but no solr content"))
+//!         }
+//!         Err(e) => Err(e) // something happened on http
 //!     }
 //! }
 //! ```
@@ -44,7 +49,7 @@
 //!     let document = SimpleDocument { field: vec!("nice".to_string(), "document".to_string()) };
 //!     Client::new("http://solr:8983", "collection")
 //!         .create(document)
-//!         .run::<Value>().expect("panic, request failed.");
+//!         .run().expect("request failed.");
 //! }
 //! ```
 //! ## Delete
@@ -55,7 +60,7 @@
 //! fn delete() {
 //!     Client::new("http://solr:8983", "collection")
 //!         .delete("delete:query")
-//!         .run::<Value>().expect("panic, request failed.");
+//!         .run().expect("request failed.");
 //! }
 //! ```
 //!
@@ -70,14 +75,15 @@
 //! use rsolr::error::RSolrError;
 //! use rsolr::solr_response::Response;
 //! fn more_like_this()  -> Result<Response<Value>, RSolrError> {
-//!     let result = Client::new("http://solr:8983", "collection")
+//!     let mut client = Client::new("http://solr:8983", "collection");
+//!     let result = client
 //!         .request_handler("mlt")
 //!         .add_query_param("mlt.fl", "similarity_field")
 //!         .add_query_param("mlt.mintf", "4")
 //!         .add_query_param("mlt.minwl", "3")
-//!         .run::<Value>();
+//!         .run();
 //!     match result {
-//!         Ok(solr_result) => Ok(solr_result.response.expect("Request is OK, but no response; in select it's a failure on Solr side.")),
+//!         Ok(solr_result) => Ok(client.get_response::<Value>().expect("Serialization failed").response.expect("No response")),
 //!         Err(e) => Err(e)
 //!     }
 //! }
@@ -88,11 +94,11 @@ pub mod solr_response;
 pub mod query;
 mod facet_fields;
 mod http_client;
+
 use serde::{Deserialize, Serialize};
 use http::StatusCode;
 use url;
 use mockall_double::double;
-use reqwest::blocking::Response as HttpResponse;
 use serde_json::{json, Value};
 
 #[double]
@@ -122,14 +128,15 @@ pub struct Client<'a> {
     request_handler: &'a str,
     url: url::Url,
     payload: Payload,
-    collection: &'a str
+    collection: &'a str,
+    response: Option<Value>
 }
 
 impl<'a> Client<'a> {
 
     pub fn new(base_url: &'a str, collection: &'a str) -> Self {
         let url = url::Url::parse(base_url).unwrap();
-        Client { request_handler: "", url, payload: Payload::None, collection }
+        Client { request_handler: "", url, payload: Payload::None, collection, response: None }
     }
 
     /// Adds custom GET query parameter to the Solr query.
@@ -169,7 +176,7 @@ impl<'a> Client<'a> {
     /// Sets the Solr request handler in the URL. You can use RequestHandlers const, but it might be any string.
     pub fn request_handler(&mut self, handler: &'a str) -> &mut Self {
         self.request_handler = handler;
-        self.payload(Payload::None);
+        self.payload = Payload::None;
         self.url.path_segments_mut().unwrap()
             .clear()
             .push("solr")
@@ -179,32 +186,27 @@ impl<'a> Client<'a> {
     }
     /// Shorthand for commit=true, so if set write operations will be immediate.
     pub fn auto_commit(&mut self) -> &mut Self {
-        self.add_query_param("commit", "true");
-        self
+        self.add_query_param("commit", "true")
     }
 
     /// Shorthand for 'start' parameter of Solr basic pagination.
     pub fn start(&mut self, start: u32) -> &mut Self {
-        self.add_query_param("start", &start.to_string());
-        self
+        self.add_query_param("start", &start.to_string())
     }
 
     /// Shorthand for 'rows' parameter of Solr basic pagination.
     pub fn rows(&mut self, rows: u32) -> &mut Self {
-        self.add_query_param("rows", &rows.to_string());
-        self
+        self.add_query_param("rows", &rows.to_string())
     }
 
     /// Shorthand for 'q' parameter for setting query in the request.
     pub fn query(&mut self, query: &str) -> &mut Self {
-        self.add_query_param("q", query);
-        self
+        self.add_query_param("q", query)
     }
 
     /// Shorthand for 'df' parameter.
     pub fn default_field(&mut self, default_field: &str) -> &mut Self {
-        self.add_query_param("df", default_field);
-        self
+        self.add_query_param("df", default_field)
     }
 
     /// Generates the request url as string without sending.
@@ -214,38 +216,64 @@ impl<'a> Client<'a> {
 
     /// Sets the payload of the request, only JSON is supported.
     pub fn set_document<P : Clone + Serialize>(&mut self, document: P) -> &mut Self {
-        self.payload(Payload::Body(serde_json::to_value::<P>(document).unwrap()));
-        self
+        self.payload(Payload::Body(serde_json::to_value::<P>(document).unwrap()))
     }
 
     /// Empties the payload, it requires for POST requests (i.e. Solr delete or commit).
     pub fn set_empty_payload(&mut self) -> &mut Self {
-        self.payload(Payload::Empty);
-        self
+        self.payload(Payload::Empty)
     }
 
     /// Clears the payload, now request method will be GET.
     pub fn clear_payload(&mut self) -> &mut Self {
-        self.payload(Payload::None);
-        self
+        self.payload(Payload::None)
     }
 
     /// Runs the prepared request and fetches response to the type specified. Responds Result which contains SolrResult, the response part of Solr response.
-    pub fn run<T: for<'de> Deserialize<'de> + Clone>(&mut self) -> Result<SolrResponse<T>, RSolrError> {
-        let solr_result = match self.payload.clone() {
+    pub fn run(&mut self) -> Result<(), RSolrError> {
+        let http_result = match self.payload.clone() {
             Payload::Body(body) => HttpClient::new().post(self.url_str(), Some(body)),
             Payload::Empty => HttpClient::new().post(self.url_str(), None),
             Payload::None => HttpClient::new().get(self.url_str())
         };
 
-        let response = match solr_result {
+        let http_response = match http_result {
             Ok(response) => response,
             Err(e) => return Err(RSolrError { source: Some(Box::new(e)), status: None, message: None }),
         };
 
-        self.url.query_pairs_mut().clear();
+        match http_response.status() {
+            StatusCode::OK => {
+                self.response = http_response.json::<Value>().ok();
+                self.url.query_pairs_mut().clear();
+                Ok(())
+            },
+            StatusCode::NOT_FOUND => return Err(RSolrError { source: None, status: Some(StatusCode::NOT_FOUND), message: None }),
+            other_status => {
+                let body_text = http_response.text().unwrap();
+                return match serde_json::from_str::<Value>(&body_text) {
+                    Ok(r) => Err(RSolrError { source: None, status: Some(other_status), message: Some(r["error"]["msg"].as_str().unwrap().to_owned()) }),
+                    Err(e) => {
+                        Err(
+                            RSolrError {
+                                source: Some(Box::new(e)),
+                                status: Some(other_status),
+                                message: Some(body_text)
+                            })
+                    }
+                }
+            }
+        }
+    }
 
-        self.handle_response::<T>(response)
+    pub fn get_response<T: for<'de> Deserialize<'de> + Clone>(&self) -> Result<SolrResponse<T>, RSolrError>{
+        match self.response.clone() {
+            Some(v) => match serde_json::from_value(v) {
+                Ok(response) => Ok(response),
+                Err(e) => Err(RSolrError{ source: Some(Box::new(e)), status: None, message: Some("Cannot deserialize response into object".to_owned()) })
+            },
+            _ => Ok(SolrResponse { response: None, facet_counts: None })
+        }
     }
 
     /// Shorthand for query.
@@ -284,33 +312,6 @@ impl<'a> Client<'a> {
     fn payload(&mut self, payload: Payload) -> &mut Self {
         self.payload = payload;
         self
-    }
-
-    fn handle_response<T: for<'de> Deserialize<'de> + Clone>(&self, response: HttpResponse) -> Result<SolrResponse<T>, RSolrError> {
-        match response.status() {
-            StatusCode::OK => {
-                match response.json::<SolrResponse<T>>() {
-                    Ok(response) => Ok(response),
-                    Err(e) => return Err(RSolrError { source: Some(Box::new(e)), status: None, message: None }),
-                }
-            },
-            StatusCode::NOT_FOUND => return Err(RSolrError { source: None, status: Some(StatusCode::NOT_FOUND), message: None }),
-            other_status => {
-                let body_text = response.text().unwrap();
-                let message_string = match serde_json::from_str::<Value>(&body_text) {
-                    Ok(r) => r["error"]["msg"].to_string(),
-                    Err(e) => {
-                        return Err(
-                            RSolrError {
-                                source: Some(Box::new(e)),
-                                status: Some(other_status),
-                                message: Some(body_text)
-                            })
-                    }
-                };
-                return Err(RSolrError { source: None, status: Some(other_status), message: Some(message_string.replace("\"", "")) })
-            }
-        }
     }
 }
 
@@ -402,9 +403,9 @@ mod tests {
         let result = command
             .request_handler("select")
             .query("*:*")
-            .run::<Value>();
+            .run();
         assert!(result.is_ok());
-        assert_eq!(result.unwrap().response.unwrap().docs[0]["success"], true);
+        assert_eq!(command.get_response::<Value>().unwrap().response.unwrap().docs[0]["success"], true);
     }
 
     #[test]
@@ -438,14 +439,14 @@ mod tests {
 
         let collection = "default";
         let host = "http://localhost:8983";
-        let mut command = Client::new(host, collection);
-        let result = command
+        let mut client = Client::new(host, collection);
+        let result = client
             .request_handler("select")
             .query("*:*")
             .facet_field("exists")
-            .run::<Value>();
+            .run();
         assert!(result.is_ok());
-        let facets = result.unwrap().facet_counts.unwrap();
+        let facets = client.get_response::<Value>().unwrap().facet_counts.unwrap();
         assert_eq!(facets.facet_fields.fields, serde_json::from_str::<Value>(r#"{"exists":["term1", 23423,"term2",993939]}"#).unwrap());
     }
 
@@ -483,9 +484,9 @@ mod tests {
             .request_handler("select")
             .query("*:*")
             .facet_query("anything: *")
-            .run::<Value>();
+            .run();
         assert!(result.is_ok());
-        let facets = result.unwrap().facet_counts.unwrap();
+        let facets = command.get_response::<Value>().unwrap().facet_counts.unwrap();
         assert_eq!(facets.facet_queries, serde_json::from_str::<Value>(r#"{"anything: *": 324534 }"#).unwrap());
     }
 
@@ -528,7 +529,7 @@ mod tests {
             .query("*:*")
             .facet_query("anything: *")
             .facet_field("exists")
-            .run::<Value>();
+            .run();
         assert!(result.is_ok());
     }
 
@@ -571,7 +572,7 @@ mod tests {
             .facet_query("anything: *")
             .facet_field("exists")
             .query("*:*")
-            .run::<Value>();
+            .run();
         assert!(result.is_ok());
     }
 
@@ -598,9 +599,9 @@ mod tests {
             .request_handler("update/json/docs")
             .auto_commit()
             .set_document(json!({ "this is": "a document"}))
-            .run::<Value>();
+            .run();
         assert!(result.is_ok());
-        assert_eq!(result.unwrap().response.unwrap().docs[0]["success"], true);
+        assert_eq!(command.get_response::<Value>().unwrap().response.unwrap().docs[0]["success"], true);
     }
 
     #[test]
@@ -618,7 +619,7 @@ mod tests {
         let base_url = "http://localhost:8983";
         let result = Client::new(base_url, collection)
             .select("bad: query")
-            .run::<Value>();
+            .run();
         assert!(result.is_err());
         let error = result.err().expect("No Error");
         assert_eq!(error.status().unwrap(), StatusCode::INTERNAL_SERVER_ERROR);
@@ -640,7 +641,7 @@ mod tests {
         let host = "http://localhost:8983";
         let result = Client::new(host, collection)
             .select("bad: query")
-            .run::<Value>();
+            .run();
         assert!(result.is_err());
         let error = result.err().expect("No Error");
         assert_eq!(error.status().unwrap(), StatusCode::INTERNAL_SERVER_ERROR);
@@ -663,7 +664,7 @@ mod tests {
         let result = Client::new(host, collection)
             .auto_commit()
             .create(json!({"anything": "anything"}))
-            .run::<Value>();
+            .run();
         assert!(result.is_err());
         let error = result.err().expect("No Error");
         assert_eq!(error.status().unwrap(), StatusCode::INTERNAL_SERVER_ERROR);
@@ -686,7 +687,7 @@ mod tests {
         let result = Client::new(host, collection)
             .auto_commit()
             .create(json!({"anything": "anything"}))
-            .run::<Value>();
+            .run();
         assert!(result.is_err());
         let error = result.err().expect("No Error");
         assert_eq!(error.status().unwrap(), StatusCode::INTERNAL_SERVER_ERROR);
@@ -709,7 +710,7 @@ mod tests {
         let result = Client::new(host, collection)
             .auto_commit()
             .delete("*:*")
-            .run::<Value>();
+            .run();
         assert!(result.is_err());
         let error = result.err().expect("No Error");
         assert_eq!(error.status().unwrap(), StatusCode::INTERNAL_SERVER_ERROR);
@@ -731,7 +732,7 @@ mod tests {
         let host = "http://localhost:8983";
         let result = Client::new(host, collection)
             .delete("*:*")
-            .run::<Value>();
+            .run();
         assert!(result.is_err());
         let error = result.err().expect("No Error");
         assert_eq!(error.status().unwrap(), StatusCode::INTERNAL_SERVER_ERROR);

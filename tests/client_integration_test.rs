@@ -53,8 +53,11 @@ fn test_query_document_value_returned() -> Result<(), reqwest::Error> {
         .body(serde_json::to_string(&expected_documents).unwrap())
         .send()?;
 
-    let result = Client::new(host, collection).select("*:*").run::<Value>();
-    assert_eq!(result.unwrap().response.unwrap().docs.get(0).unwrap().get("egerke").unwrap().get(0).unwrap(), "okapi");
+    let mut client = Client::new(host, collection);
+    let result = client.select("*:*").run();
+    assert!(result.is_ok());
+
+    assert_eq!(client.get_response::<Value>().unwrap().response.unwrap().docs.get(0).unwrap().get("egerke").unwrap().get(0).unwrap(), "okapi");
     empty_collection(host).ok();
     Ok(())
 }
@@ -76,9 +79,12 @@ fn test_query_returns_error_if_cannot_serialize() -> Result<(), reqwest::Error> 
         .body(serde_json::to_string(&expected_documents).unwrap())
         .send()?;
 
-    let result = Client::new(host, collection).select("*:*").run::<ExcitingDocument>();
-    assert!(result.is_err());
-    assert!(result.err().unwrap().source().is_some());
+    let mut client = Client::new(host, collection);
+    let result= client.select("*:*").run();
+    assert!(result.is_ok());
+    let response = client.get_response::<ExcitingDocument>();
+    assert!(response.is_err());
+    assert!(response.err().unwrap().source().is_some());
     empty_collection(host).ok();
     Ok(())
 }
@@ -88,7 +94,7 @@ fn test_query_responds_rsolr_error_with_embedded_network_error() {
     let _m = get_lock(&MTX);
     let collection = "default";
     let host = "http://not_existing_host:8983";
-    let result = Client::new(host, collection).select("*:*").run::<Value>();
+    let result = Client::new(host, collection).select("*:*").run();
     assert!(result.is_err());
     let error = result.err().expect("No Error");
     let original_error_message = error.source().expect("no source error").to_string();
@@ -101,7 +107,7 @@ fn test_query_responds_rsolr_error_with_embedded_no_collection_error() {
     let _m = get_lock(&MTX);
     let collection = "not_existing_collection";
     let host = "http://localhost:8983";
-    let result = Client::new(host, collection).select("*:*").run::<Value>();
+    let result = Client::new(host, collection).select("*:*").run();
     assert!(result.is_err());
     let error = result.err().expect("No Error");
     assert_eq!(error.status().unwrap(), StatusCode::NOT_FOUND);
@@ -114,7 +120,7 @@ fn test_query_responds_rsolr_error_with_solr_problem_if_query_is_bad() {
     let _m = get_lock(&MTX);
     let collection = "default";
     let host = "http://localhost:8983";
-    let result = Client::new(host, collection).select("bad: query").run::<Value>();
+    let result = Client::new(host, collection).select("bad: query").run();
     assert!(result.is_err());
     let error = result.err().expect("No Error");
     assert_eq!(error.status().unwrap(), StatusCode::BAD_REQUEST);
@@ -135,11 +141,13 @@ fn test_create_with_auto_commit_inserts_document() {
     client
         .auto_commit()
         .create(document)
-        .run::<Value>()
+        .run()
         .ok();
 
-    let result = client.select("*:*").run::<Value>();
-    assert_eq!(result.unwrap().response.unwrap().docs[0]["okapi"][0], "egerke");
+    let result = client.select("*:*").run();
+    assert!(result.is_ok());
+    let solr_response = client.get_response::<Value>();
+    assert_eq!(solr_response.unwrap().response.unwrap().docs[0]["okapi"][0], "egerke");
     empty_collection(base_url).ok();
 }
 
@@ -156,11 +164,12 @@ fn test_create_inserts_any_serializable_document() {
     client
         .auto_commit()
         .create(document)
-        .run::<Value>()
+        .run()
         .ok();
 
-    let result = client.select("*:*").run::<Value>();
-    assert_eq!(result.unwrap().response.unwrap().docs[0]["desire"][0], "sausage");
+    client.select("*:*").run().ok();
+    let solr_response = client.get_response::<Value>();
+    assert_eq!(solr_response.unwrap().response.unwrap().docs[0]["desire"][0], "sausage");
     empty_collection(base_url).ok();
 }
 
@@ -176,16 +185,19 @@ fn test_create_without_auto_commit_uploads_document_and_index_on_separated_commi
 
     client
         .create(document)
-        .run::<Value>()
+        .run()
         .ok();
 
-    let result = client.select("*:*").run::<Value>();
-    assert_eq!(result.unwrap().response.unwrap().docs.len(), 0);
 
-    client.commit().run::<Value>().ok();
+    client.select("*:*").run().ok();
+    let solr_response = client.get_response::<Value>();
+    assert_eq!(solr_response.unwrap().response.unwrap().docs.len(), 0);
 
-    let result = client.select("*:*").run::<Value>();
-    assert_eq!(result.unwrap().response.unwrap().docs[0]["okapi"][0], "egerke");
+    client.commit().run().ok();
+
+    client.select("*:*").run().ok();
+    let solr_response = client.get_response::<Value>();
+    assert_eq!(solr_response.unwrap().response.unwrap().docs[0]["okapi"][0], "egerke");
     empty_collection(host).ok();
 }
 
@@ -196,7 +208,7 @@ fn test_create_responds_rsolr_error_with_embedded_network_error() {
     let host = "http://not_existing_host:8983";
     let result = Client::new(host, collection)
         .create(json!({"anything": "anything"}))
-        .run::<Value>();
+        .run();
     assert!(result.is_err());
     let error = result.err().expect("No Error");
     let original_error_message = error.source().expect("no source error").to_string();
@@ -212,7 +224,7 @@ fn test_create_responds_rsolr_error_with_embedded_no_collection_error() {
 
     let result = Client::new(host, collection)
         .create(json!({"anything": "anything"}))
-        .run::<Value>();
+        .run();
 
     assert!(result.is_err());
     let error = result.err().expect("No Error");
@@ -231,15 +243,16 @@ fn test_delete_deletes_docs() {
     let _ =  client
         .auto_commit()
         .create(json!({"okapi": "another egerke"}))
-        .run::<Value>();
+        .run();
 
     let result = client
         .auto_commit()
         .delete("*:*")
-        .run::<Value>();
+        .run();
 
     assert!(result.is_ok());
-    let docs = client.select("*:*").run::<Value>().unwrap().response.unwrap().docs;
+    client.select("*:*").run().ok();
+    let docs = client.get_response::<Value>().unwrap().response.unwrap().docs;
     assert_eq!(docs.len(), 0);
 
     empty_collection(host).ok();
@@ -252,16 +265,17 @@ fn test_delete_deletes_docs_specified_by_query() {
     let host = "http://localhost:8983";
     empty_collection(host).ok();
     let mut client = Client::new(host, collection);
-    client.create(json!({"okapi": "another egerke"})).run::<Value>().ok();
-    client.create(json!({"okapi2": "egerke"})).run::<Value>().ok();
-    client.commit().run::<Value>().ok();
+    client.create(json!({"okapi": "another egerke"})).run().ok();
+    client.create(json!({"okapi2": "egerke"})).run().ok();
+    client.commit().run().ok();
 
     let result = client
         .delete("okapi2: egerke")
-        .run::<Value>();
+        .run();
 
     assert!(result.is_ok());
-    let docs = client.select("*:*").run::<Value>().unwrap().response.unwrap().docs;
+    client.select("*:*").run().ok();
+    let docs = client.get_response::<Value>().ok().unwrap().response.unwrap().docs;
     assert_eq!(docs[0]["okapi"][0], "another egerke");
 
     empty_collection(host).ok();
@@ -274,18 +288,18 @@ fn test_without_autocommit_delete_deletes_docs_after_commit_specified_by_query()
     let host = "http://localhost:8983";
     empty_collection(host).ok();
     let mut client = Client::new(host, collection);
-    client.create(json!({"okapi": "another egerke"})).run::<Value>().ok();
-    client.create(json!({"okapi2": "egerke"})).run::<Value>().ok();
-    client.commit().run::<Value>().ok();
+    client.create(json!({"okapi": "another egerke"})).run().ok();
+    client.create(json!({"okapi2": "egerke"})).run().ok();
+    client.commit().run().ok();
 
-    client.delete("okapi: another egerke").run::<Value>().ok();
-
-    let docs = client.select("*:*").run::<Value>().unwrap().response.unwrap().docs;
+    client.delete("okapi: another egerke").run().ok();
+    client.select("*:*").run().ok();
+    let docs = client.get_response::<Value>().ok().unwrap().response.unwrap().docs;
     assert_eq!(docs[0]["okapi"][0], "another egerke");
 
-    client.commit().run::<Value>().ok();
-
-    let docs = client.select("*:*").run::<Value>().unwrap().response.unwrap().docs;
+    client.commit().run().ok();
+    client.select("*:*").run().ok();
+    let docs = client.get_response::<Value>().unwrap().response.unwrap().docs;
     assert_ne!(docs[0]["okapi"][0], "another egerke");
 
     empty_collection(host).ok();
@@ -296,7 +310,7 @@ fn test_delete_responds_rsolr_error_with_embedded_network_error() {
     let _m = get_lock(&MTX);
     let collection = "default";
     let host = "http://not_existing_host:8983";
-    let result = Client::new(host, collection).delete("*:*").run::<Value>();
+    let result = Client::new(host, collection).delete("*:*").run();
     assert!(result.is_err());
     let error = result.err().expect("No Error");
     let original_error_message = error.source().expect("no source error").to_string();
@@ -309,7 +323,7 @@ fn test_delete_responds_rsolr_error_with_embedded_no_collection_error() {
     let _m = get_lock(&MTX);
     let collection = "not_existing_collection";
     let host = "http://localhost:8983";
-    let result = Client::new(host, collection).delete("*:*").run::<Value>();
+    let result = Client::new(host, collection).delete("*:*").run();
     assert!(result.is_err());
     let error = result.err().expect("No Error");
     assert_eq!(error.status().unwrap(), StatusCode::NOT_FOUND);
@@ -322,11 +336,14 @@ fn test_delete_responds_rsolr_error_with_solr_problem_if_query_is_bad() {
     let _m = get_lock(&MTX);
     let collection = "default";
     let host = "http://localhost:8983";
-    let result = Client::new(host, collection).delete("bad: query").run::<Value>();
+    let mut client = Client::new(host, collection);
+    let result = client.delete("bad: query").run();
     assert!(result.is_err());
     let error = result.err().expect("No Error");
     assert_eq!(error.status().unwrap(), StatusCode::BAD_REQUEST);
     matches!(error.kind(), rsolr::error::ErrorKind::SolrSyntax);
     assert!(error.source().is_none());
+    assert!(client.get_response::<Value>().unwrap().facet_counts.is_none());
+    assert!(client.get_response::<Value>().unwrap().response.is_none());
     assert_eq!(error.message(), Some("undefined field bad"));
 }
