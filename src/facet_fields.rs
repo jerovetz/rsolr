@@ -5,12 +5,15 @@ use serde_json::Value;
 /// The fields part of the facets.
 #[derive(Clone, Debug, Deserialize)]
 pub struct FacetFields {
+
+    /// Deserialized value of facet_fields.
     #[serde(flatten)]
     pub fields: Value,
 }
 
 impl FacetFields {
 
+    /// Get all value of a facet field.
     pub fn get_all_values_of(&self, field: &str) -> Option<Vec<&str>> {
         let mut array_iter = match self.fields[field].as_array() {
             Some(ar) => ar.iter(),
@@ -26,6 +29,7 @@ impl FacetFields {
         Some(all)
     }
 
+    /// Get the count of a specific field value.
     pub fn get_count(&self, field: &str, key: &str) -> Option<u64> {
         let mut array_iter = match self.fields[field].as_array() {
             Some(ar) => ar.iter(),
@@ -48,7 +52,6 @@ impl FacetFields {
         }
         None
     }
-
 }
 
 #[cfg(test)]
