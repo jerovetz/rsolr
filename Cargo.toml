@@ -23,6 +23,6 @@ url = "2.3.1"
 mockall = "0.11.4"
 
 [package.metadata.scripts]
-solr-start = "docker run -d --rm --name rsc_solr -v solrdata:/var/solr -p 8983:8983 solr:8"
+solr-start = "docker run -d --rm -e SOLR_ENABLE_STREAM_BODY=true --name rsc_solr -v solrdata:/var/solr -p 8983:8983 solr:latest"
 solr-stop = "docker stop rsc_solr"
 solr-provision = "./solr_provision.sh"

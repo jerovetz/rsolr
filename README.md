@@ -87,7 +87,7 @@ It uses the blocking version of the reqwest http client.
  ```
 
 ## Development
-I use [Cargo Run Script](https://crates.io/crates/cargo-run-script) to setup and manage a Solr locally. You'll also need a [Docker](https://docs.docker.com/get-docker/). After checkout you should run
+I use [Cargo Run Script](https://crates.io/crates/cargo-run-script) to setup and manage a Solr locally, specified the latest Solr to stay up-to-date. Solr 8+ is supported. You'll also need a [Docker](https://docs.docker.com/get-docker/). After checkout you should run
 
     cargo run-script solr-start
     cargo run-script solr-provision
