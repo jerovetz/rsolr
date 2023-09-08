@@ -17,7 +17,9 @@ jobs:
         image: solr:latest
         ports:
         - 8983:8983
-        options: --name rsc_solr
+        options: >-
+          --name rsc_solr
+          -e SOLR_ENABLE_STREAM_BODY=true
     steps:
     - uses: actions/checkout@v3
     - name: Build
