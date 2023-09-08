@@ -14,7 +14,7 @@ jobs:
     runs-on: ubuntu-latest
     services:
       solr:
-        image: solr:8
+        image: solr:latest
         ports:
         - 8983:8983
         options: --name rsc_solr

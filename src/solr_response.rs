@@ -13,7 +13,7 @@ pub struct Response<T> {
     pub docs: Vec<T>
 }
 
-/// The facet part of the response. Fields are parsed, see there.
+/// The facet part of the response. Facet_fields is parsed, see there.
 #[derive(Deserialize, Clone, Debug)]
 pub struct Facet {
     pub facet_queries: Value,
