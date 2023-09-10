@@ -94,18 +94,18 @@ pub mod solr_response;
 pub mod query;
 mod facet_fields;
 mod http_client;
+mod cursor;
 
 use serde::{Deserialize, Serialize};
 use http::StatusCode;
-use url;
 use mockall_double::double;
+use url;
 use serde_json::{json, Value};
 
 #[double]
 use http_client::HttpClient;
 use crate::error::RSolrError;
 use crate::solr_response::SolrResponse;
-
 
 /// The Payload defines the request method. Body and Empty sets method to POST, None uses GET.
 #[derive(Clone, Debug)]
