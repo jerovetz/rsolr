@@ -92,15 +92,16 @@
 pub mod error;
 pub mod solr_response;
 pub mod query;
+pub mod cursor;
 mod facet_fields;
 mod http_client;
-mod cursor;
 
 use serde::{Deserialize, Serialize};
 use http::StatusCode;
 use mockall_double::double;
 use url;
 use serde_json::{json, Value};
+use url::Url;
 
 #[double]
 use http_client::HttpClient;
@@ -126,7 +127,7 @@ impl RequestHandlers {
 
 pub struct Client<'a> {
     request_handler: &'a str,
-    url: url::Url,
+    url: Url,
     payload: Payload,
     collection: &'a str,
     response: Option<Value>
@@ -135,7 +136,7 @@ pub struct Client<'a> {
 impl<'a> Client<'a> {
 
     pub fn new(base_url: &'a str, collection: &'a str) -> Self {
-        let url = url::Url::parse(base_url).unwrap();
+        let url = Url::parse(base_url).unwrap();
         Client { request_handler: "", url, payload: Payload::None, collection, response: None }
     }
 
@@ -192,6 +193,19 @@ impl<'a> Client<'a> {
     /// Shorthand for 'start' parameter of Solr basic pagination.
     pub fn start(&mut self, start: u32) -> &mut Self {
         self.add_query_param("start", &start.to_string())
+    }
+
+    pub fn cursor_mark(&mut self, cursor_mark: &str) -> &mut Self {
+        self.add_query_param("cursorMark", cursor_mark)
+    }
+
+    pub fn url(&mut self, url: &str) -> &mut Self {
+        self.url = Url::parse(url).expect("Url parse failed.");
+        self
+    }
+
+    pub fn sort(&mut self, sort: &str) -> &mut Self {
+        self.add_query_param("sort", sort)
     }
 
     /// Shorthand for 'rows' parameter of Solr basic pagination.
@@ -272,7 +286,7 @@ impl<'a> Client<'a> {
                 Ok(response) => Ok(response),
                 Err(e) => Err(RSolrError{ source: Some(Box::new(e)), status: None, message: Some("Cannot deserialize response into object".to_owned()) })
             },
-            _ => Ok(SolrResponse { response: None, facet_counts: None })
+            _ => Ok(SolrResponse { response: None, facet_counts: None, nextCursorMark: None })
         }
     }
 
