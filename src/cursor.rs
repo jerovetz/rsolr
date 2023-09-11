@@ -4,7 +4,7 @@ use crate::error::RSolrError;
 use crate::solr_response::SolrResponse;
 
 pub struct Cursor<'a> {
-    client: &'a Client<'a>
+    client: Client<'a>
 }
 
 impl<'a> Cursor<'a> {
@@ -23,7 +23,7 @@ mod tests {
     #[test]
     fn test_response_returned_from_client() {
         let client = Client::new("http://solr.url", "dummy");
-        let cursor = Cursor { client: &client };
+        let cursor = Cursor { client };
 
         let response = cursor.get_response::<Value>();
         assert!(response.expect("Unexpected error from get_response").response.is_none());
