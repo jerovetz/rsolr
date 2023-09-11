@@ -13,6 +13,10 @@ pub struct Cursor<'a> {
 
 impl<'a> Cursor<'a> {
 
+    pub fn new(client: Client<'a>) -> Self {
+        Cursor { client, the_end: false, cursor_mark: "".to_string(), url: None }
+    }
+
     pub fn get_response<T: for<'de> Deserialize<'de> + Clone>(&self) -> Result<SolrResponse<T>, RSolrError>{
         self.client.get_response::<T>()
     }

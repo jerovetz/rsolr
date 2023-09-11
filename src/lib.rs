@@ -105,6 +105,7 @@ use url::Url;
 
 #[double]
 use http_client::HttpClient;
+use crate::cursor::Cursor;
 use crate::error::RSolrError;
 use crate::solr_response::SolrResponse;
 
@@ -125,6 +126,7 @@ impl RequestHandlers {
     pub const DELETE: &'static str = "update";
 }
 
+#[derive(Clone)]
 pub struct Client<'a> {
     request_handler: &'a str,
     url: Url,
@@ -208,6 +210,10 @@ impl<'a> Client<'a> {
         self.add_query_param("sort", sort)
     }
 
+    pub fn cursor(&mut self) -> &mut Self {
+        self.add_query_param("cursorMark", "*")
+    }
+
     /// Shorthand for 'rows' parameter of Solr basic pagination.
     pub fn rows(&mut self, rows: u32) -> &mut Self {
         self.add_query_param("rows", &rows.to_string())
@@ -244,7 +250,7 @@ impl<'a> Client<'a> {
     }
 
     /// Runs the prepared request and fetches response to the type specified. Responds Result which contains SolrResult, the response part of Solr response.
-    pub fn run(&mut self) -> Result<(), RSolrError> {
+    pub fn run(&mut self) -> Result<Option<Cursor>, RSolrError> {
         let http_result = match self.payload.clone() {
             Payload::Body(body) => HttpClient::new().post(self.url_str(), Some(body)),
             Payload::Empty => HttpClient::new().post(self.url_str(), None),
@@ -259,8 +265,12 @@ impl<'a> Client<'a> {
         match http_response.status() {
             StatusCode::OK => {
                 self.response = http_response.json::<Value>().ok();
+                let mut cursor = None;
+                if self.url.query().unwrap_or("no url").contains("cursorMark") == true {
+                    cursor = Some(Cursor::new(self.clone()));
+                }
                 self.url.query_pairs_mut().clear();
-                Ok(())
+                Ok(cursor)
             },
             StatusCode::NOT_FOUND => return Err(RSolrError { source: None, status: Some(StatusCode::NOT_FOUND), message: None }),
             other_status => {
@@ -631,7 +641,8 @@ mod tests {
 
         let collection = "default";
         let base_url = "http://localhost:8983";
-        let result = Client::new(base_url, collection)
+        let mut client = Client::new(base_url, collection);
+        let result = client
             .select("bad: query")
             .run();
         assert!(result.is_err());
@@ -653,7 +664,8 @@ mod tests {
 
         let collection = "default";
         let host = "http://localhost:8983";
-        let result = Client::new(host, collection)
+        let mut client  = Client::new(host, collection);
+            let result = client
             .select("bad: query")
             .run();
         assert!(result.is_err());
@@ -675,7 +687,8 @@ mod tests {
 
         let collection = "default";
         let host = "http://localhost:8983";
-        let result = Client::new(host, collection)
+        let mut client = Client::new(host, collection);
+        let result = client
             .auto_commit()
             .create(json!({"anything": "anything"}))
             .run();
@@ -698,7 +711,8 @@ mod tests {
 
         let collection = "default";
         let host = "http://localhost:8983";
-        let result = Client::new(host, collection)
+        let mut client  = Client::new(host, collection);
+        let result = client
             .auto_commit()
             .create(json!({"anything": "anything"}))
             .run();
@@ -721,7 +735,8 @@ mod tests {
 
         let collection = "default";
         let host = "http://localhost:8983";
-        let result = Client::new(host, collection)
+        let mut client = Client::new(host, collection);
+        let result = client
             .auto_commit()
             .delete("*:*")
             .run();
@@ -744,7 +759,8 @@ mod tests {
 
         let collection = "default";
         let host = "http://localhost:8983";
-        let result = Client::new(host, collection)
+        let mut client = Client::new(host, collection);
+        let result = client
             .delete("*:*")
             .run();
         assert!(result.is_err());
@@ -752,5 +768,28 @@ mod tests {
         assert_eq!(error.status().unwrap(), StatusCode::INTERNAL_SERVER_ERROR);
         assert_eq!(error.message().unwrap(), "some unparseable thing");
         assert!(matches!(error.kind(), error::ErrorKind::Other));
+    }
+
+    #[test]
+    fn test_run_responds_cursor_if_cursor_set() {
+        let _m = get_lock(&MTX);
+        let ctx = HttpClient::new_context();
+        ctx.expect().returning(|| {
+            let mut mock = HttpClient::default();
+            mock.expect_get()
+                .returning(|_| Ok(reqwest::blocking::Response::from(http::response::Builder::new()
+                    .status(200)
+                    .body(r#"{"response": {"numFound": 1,"numFoundExact": true,"start": 0,"docs": [{"success": true }]}}"#)
+                    .unwrap())));
+            mock
+        });
+
+        let mut client = Client::new("http://localhost:8983", "default");
+        let result = client
+            .select("*:*")
+            .sort("field asc")
+            .cursor()
+            .run();
+        assert!(result.expect("Ok expected").is_some());
     }
 }

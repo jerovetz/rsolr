@@ -94,7 +94,8 @@ fn test_query_responds_rsolr_error_with_embedded_network_error() {
     let _m = get_lock(&MTX);
     let collection = "default";
     let host = "http://not_existing_host:8983";
-    let result = Client::new(host, collection).select("*:*").run();
+    let mut client = Client::new(host, collection);
+    let result = client.select("*:*").run();
     assert!(result.is_err());
     let error = result.err().expect("No Error");
     let original_error_message = error.source().expect("no source error").to_string();
@@ -107,7 +108,8 @@ fn test_query_responds_rsolr_error_with_embedded_no_collection_error() {
     let _m = get_lock(&MTX);
     let collection = "not_existing_collection";
     let host = "http://localhost:8983";
-    let result = Client::new(host, collection).select("*:*").run();
+    let mut client = Client::new(host, collection);
+    let result = client.select("*:*").run();
     assert!(result.is_err());
     let error = result.err().expect("No Error");
     assert_eq!(error.status().unwrap(), StatusCode::NOT_FOUND);
@@ -120,7 +122,8 @@ fn test_query_responds_rsolr_error_with_solr_problem_if_query_is_bad() {
     let _m = get_lock(&MTX);
     let collection = "default";
     let host = "http://localhost:8983";
-    let result = Client::new(host, collection).select("bad: query").run();
+    let mut client = Client::new(host, collection);
+    let result = client.select("bad: query").run();
     assert!(result.is_err());
     let error = result.err().expect("No Error");
     assert_eq!(error.status().unwrap(), StatusCode::BAD_REQUEST);
@@ -206,7 +209,8 @@ fn test_create_responds_rsolr_error_with_embedded_network_error() {
     let _m = get_lock(&MTX);
     let collection = "default";
     let host = "http://not_existing_host:8983";
-    let result = Client::new(host, collection)
+    let mut client = Client::new(host, collection);
+    let result = client
         .create(json!({"anything": "anything"}))
         .run();
     assert!(result.is_err());
@@ -221,8 +225,8 @@ fn test_create_responds_rsolr_error_with_embedded_no_collection_error() {
     let _m = get_lock(&MTX);
     let collection = "not_existing_collection";
     let host = "http://localhost:8983";
-
-    let result = Client::new(host, collection)
+    let mut client = Client::new(host, collection);
+    let result = client
         .create(json!({"anything": "anything"}))
         .run();
 
@@ -310,7 +314,8 @@ fn test_delete_responds_rsolr_error_with_embedded_network_error() {
     let _m = get_lock(&MTX);
     let collection = "default";
     let host = "http://not_existing_host:8983";
-    let result = Client::new(host, collection).delete("*:*").run();
+    let mut client = Client::new(host, collection);
+    let result = client.delete("*:*").run();
     assert!(result.is_err());
     let error = result.err().expect("No Error");
     let original_error_message = error.source().expect("no source error").to_string();
@@ -323,7 +328,8 @@ fn test_delete_responds_rsolr_error_with_embedded_no_collection_error() {
     let _m = get_lock(&MTX);
     let collection = "not_existing_collection";
     let host = "http://localhost:8983";
-    let result = Client::new(host, collection).delete("*:*").run();
+    let mut client = Client::new(host, collection);
+    let result = client.delete("*:*").run();
     assert!(result.is_err());
     let error = result.err().expect("No Error");
     assert_eq!(error.status().unwrap(), StatusCode::NOT_FOUND);
