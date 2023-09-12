@@ -86,6 +86,30 @@ It uses the blocking version of the reqwest http client.
  }
  ```
 
+## Cursor-based pagination
+
+Paginated results can be fetched iteratively with the use of [solr cursor](https://solr.apache.org/guide/solr/latest/query-guide/pagination-of-results.html#fetching-a-large-number-of-sorted-results-cursors)
+
+```rust
+use serde_json::Value;
+use rsolr::Client;
+use rsolr::solr_response::SolrResponse;
+fn cursor_fetch_all_pages() -> Vec<SolrResponse<Value>> {
+    let mut responses = Vec::new();
+    let mut client = Client::new("http://solr:8983", "collection");
+    let result = client
+        .select("*:*")
+        .sort("id asc")
+        .cursor()
+        .run();
+    let mut cursor = result.expect("request failed").expect("no cursor");
+    while cursor.next::<Value>().expect("request failed").is_some() {
+        responses.push(cursor.get_response::<Value>().expect("parsing failed"));
+    }
+    responses
+}
+```
+
 ## Development
 I use [Cargo Run Script](https://crates.io/crates/cargo-run-script) to setup and manage a Solr locally, specified the latest Solr to stay up-to-date. Solr 8+ is supported. You'll also need a [Docker](https://docs.docker.com/get-docker/). After checkout you should run
 

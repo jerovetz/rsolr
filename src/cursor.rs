@@ -4,6 +4,7 @@ use crate::Client;
 use crate::error::RSolrError;
 use crate::solr_response::SolrResponse;
 
+/// Pagination cursor.
 pub struct Cursor<'a> {
     client: Client<'a>,
     cursor_mark: String,
@@ -12,14 +13,17 @@ pub struct Cursor<'a> {
 
 impl<'a> Cursor<'a> {
 
+    /// Usually you don't need to instantiate this.
     pub fn new(client: Client<'a>, cursor_mark: String) -> Self {
         Cursor { client, cursor_mark, url: None }
     }
 
+    /// Wrapper of the client response getter, you can get the first page response through the cursor as well.
     pub fn get_response<T: for<'de> Deserialize<'de> + Clone>(&self) -> Result<SolrResponse<T>, RSolrError>{
         self.client.get_response::<T>()
     }
 
+    /// Fetches and parse the pages.
     pub fn next<T: for<'de> Deserialize<'de> + Clone>(&mut self) -> Result<Option<SolrResponse<T>>, RSolrError>{
         if self.url.is_none() {
             self.url = Some(Url::parse(self.client.url_str()).expect("Url parsing failed unexpectedly"));
