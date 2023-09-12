@@ -764,6 +764,7 @@ dependencies = [
  "http",
  "mockall",
  "mockall_double",
+ "regex",
  "reqwest",
  "serde",
  "serde_json",

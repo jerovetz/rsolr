@@ -15,10 +15,19 @@ struct ExcitingDocument {
     vision: Vec<String>,
 }
 
-fn empty_collection(host : &str) -> Result<(), reqwest::Error> {
+fn empty_default_collection(host : &str) -> Result<(), reqwest::Error> {
     let http_client = HttpClient::new();
     http_client
         .post(format!("{}{}", host, "/solr/default/update?stream.body=<delete><query>*:*</query></delete>&commit=true"))
+        .header(CONTENT_TYPE, "application/json")
+        .send()?;
+    Ok(())
+}
+
+fn empty_techproducts_collection(host : &str) -> Result<(), reqwest::Error> {
+    let http_client = HttpClient::new();
+    http_client
+        .post(format!("{}{}", host, "/solr/techproducts/update?stream.body=<delete><query>*:*</query></delete>&commit=true"))
         .header(CONTENT_TYPE, "application/json")
         .send()?;
     Ok(())
@@ -41,7 +50,7 @@ fn test_query_document_value_returned() -> Result<(), reqwest::Error> {
     let _m = get_lock(&MTX);
     let collection = "default";
     let host = "http://127.0.0.1:8983";
-    empty_collection(host).ok();
+    empty_default_collection(host).ok();
 
     let http_client = HttpClient::new();
     let data = r#"{"egerke": "okapi"}"#;
@@ -58,7 +67,7 @@ fn test_query_document_value_returned() -> Result<(), reqwest::Error> {
     assert!(result.is_ok());
 
     assert_eq!(client.get_response::<Value>().unwrap().response.unwrap().docs.get(0).unwrap().get("egerke").unwrap().get(0).unwrap(), "okapi");
-    empty_collection(host).ok();
+    empty_default_collection(host).ok();
     Ok(())
 }
 
@@ -67,7 +76,7 @@ fn test_query_returns_error_if_cannot_serialize() -> Result<(), reqwest::Error> 
     let _m = get_lock(&MTX);
     let collection = "default";
     let host = "http://127.0.0.1:8983";
-    empty_collection(host).ok();
+    empty_default_collection(host).ok();
 
     let http_client = HttpClient::new();
     let data = r#"{"egerke": "okapi"}"#;
@@ -85,7 +94,7 @@ fn test_query_returns_error_if_cannot_serialize() -> Result<(), reqwest::Error> 
     let response = client.get_response::<ExcitingDocument>();
     assert!(response.is_err());
     assert!(response.err().unwrap().source().is_some());
-    empty_collection(host).ok();
+    empty_default_collection(host).ok();
     Ok(())
 }
 
@@ -137,7 +146,7 @@ fn test_create_with_auto_commit_inserts_document() {
     let _m = get_lock(&MTX);
     let collection = "default";
     let base_url = "http://localhost:8983";
-    empty_collection(base_url).ok();
+    empty_default_collection(base_url).ok();
 
     let document : Value = json!({"okapi": "egerke"});
     let mut client = Client::new(base_url, collection);
@@ -151,7 +160,7 @@ fn test_create_with_auto_commit_inserts_document() {
     assert!(result.is_ok());
     let solr_response = client.get_response::<Value>();
     assert_eq!(solr_response.unwrap().response.unwrap().docs[0]["okapi"][0], "egerke");
-    empty_collection(base_url).ok();
+    empty_default_collection(base_url).ok();
 }
 
 #[test]
@@ -159,7 +168,7 @@ fn test_create_inserts_any_serializable_document() {
     let _m = get_lock(&MTX);
     let collection = "default";
     let base_url = "http://localhost:8983";
-    empty_collection(base_url).ok();
+    empty_default_collection(base_url).ok();
 
     let document = ExcitingDocument { desire: "sausage".to_string(), vision: vec!("firearms".to_string(), "York".to_string(), "Belzebub".to_string()) };
 
@@ -173,7 +182,7 @@ fn test_create_inserts_any_serializable_document() {
     client.select("*:*").run().ok();
     let solr_response = client.get_response::<Value>();
     assert_eq!(solr_response.unwrap().response.unwrap().docs[0]["desire"][0], "sausage");
-    empty_collection(base_url).ok();
+    empty_default_collection(base_url).ok();
 }
 
 #[test]
@@ -181,7 +190,7 @@ fn test_create_without_auto_commit_uploads_document_and_index_on_separated_commi
     let _m = get_lock(&MTX);
     let collection = "default";
     let host = "http://localhost:8983";
-    empty_collection(host).ok();
+    empty_default_collection(host).ok();
 
     let document : Value = serde_json::from_str(r#"{"okapi": "egerke"}"#).unwrap();
     let mut client = Client::new(host,collection);
@@ -201,7 +210,7 @@ fn test_create_without_auto_commit_uploads_document_and_index_on_separated_commi
     client.select("*:*").run().ok();
     let solr_response = client.get_response::<Value>();
     assert_eq!(solr_response.unwrap().response.unwrap().docs[0]["okapi"][0], "egerke");
-    empty_collection(host).ok();
+    empty_default_collection(host).ok();
 }
 
 #[test]
@@ -242,7 +251,7 @@ fn test_delete_deletes_docs() {
     let _m = get_lock(&MTX);
     let collection = "default";
     let host = "http://localhost:8983";
-    empty_collection(host).ok();
+    empty_default_collection(host).ok();
     let mut client = Client::new(host, collection);
     let _ =  client
         .auto_commit()
@@ -259,7 +268,7 @@ fn test_delete_deletes_docs() {
     let docs = client.get_response::<Value>().unwrap().response.unwrap().docs;
     assert_eq!(docs.len(), 0);
 
-    empty_collection(host).ok();
+    empty_default_collection(host).ok();
 }
 
 #[test]
@@ -267,7 +276,7 @@ fn test_delete_deletes_docs_specified_by_query() {
     let _m = get_lock(&MTX);
     let collection = "default";
     let host = "http://localhost:8983";
-    empty_collection(host).ok();
+    empty_default_collection(host).ok();
     let mut client = Client::new(host, collection);
     client.create(json!({"okapi": "another egerke"})).run().ok();
     client.create(json!({"okapi2": "egerke"})).run().ok();
@@ -282,7 +291,7 @@ fn test_delete_deletes_docs_specified_by_query() {
     let docs = client.get_response::<Value>().ok().unwrap().response.unwrap().docs;
     assert_eq!(docs[0]["okapi"][0], "another egerke");
 
-    empty_collection(host).ok();
+    empty_default_collection(host).ok();
 }
 
 #[test]
@@ -290,7 +299,7 @@ fn test_without_autocommit_delete_deletes_docs_after_commit_specified_by_query()
     let _m = get_lock(&MTX);
     let collection = "default";
     let host = "http://localhost:8983";
-    empty_collection(host).ok();
+    empty_default_collection(host).ok();
     let mut client = Client::new(host, collection);
     client.create(json!({"okapi": "another egerke"})).run().ok();
     client.create(json!({"okapi2": "egerke"})).run().ok();
@@ -306,7 +315,7 @@ fn test_without_autocommit_delete_deletes_docs_after_commit_specified_by_query()
     let docs = client.get_response::<Value>().unwrap().response.unwrap().docs;
     assert_ne!(docs[0]["okapi"][0], "another egerke");
 
-    empty_collection(host).ok();
+    empty_default_collection(host).ok();
 }
 
 #[test]
@@ -352,4 +361,55 @@ fn test_delete_responds_rsolr_error_with_solr_problem_if_query_is_bad() {
     assert!(client.get_response::<Value>().unwrap().facet_counts.is_none());
     assert!(client.get_response::<Value>().unwrap().response.is_none());
     assert_eq!(error.message(), Some("undefined field bad"));
+}
+
+#[test]
+fn test_cursor_used_to_fetch_data() {
+
+    fn add<P: Serialize + Clone>(client: &mut Client, document: P) {
+        client
+            .auto_commit()
+            .create(document)
+            .run()
+            .ok();
+    }
+
+    let _m = get_lock(&MTX);
+    let collection = "default";
+    let host = "http://localhost:8983";
+
+    empty_techproducts_collection(host).ok();
+
+    let mut client = Client::new(host, collection);
+
+    add(&mut client,json!({"okapi": "egerke", "id": 1}));
+    add(&mut client,json!({"okapi2": "egerke", "id": 2}));
+    add(&mut client,json!({"okapi3": "egerke", "id": 3}));
+
+    let mut cursor = client
+        .select("*:*")
+        .rows(1)
+        .sort("id asc")
+        .cursor()
+        .run()
+        .expect("result expected")
+        .expect("cursor expected");
+
+
+    let first_page = cursor.get_response::<Value>().expect("result expected");
+    assert_eq!(first_page.response.unwrap().docs.get(0).unwrap().get("okapi").unwrap().get(0).unwrap(), "egerke");
+
+    let second_page = cursor.next::<Value>().expect("result expected");
+    assert_eq!(second_page.expect("solr response expected").response.unwrap().docs.get(0).unwrap().get("okapi2").unwrap().get(0).unwrap(), "egerke");
+
+    let third_page = cursor.next::<Value>().expect("result expected");
+    assert_eq!(third_page.expect("solr response expected").response.unwrap().docs.get(0).unwrap().get("okapi3").unwrap().get(0).unwrap(), "egerke");
+
+    let no_more = cursor.next::<Value>().expect("result expected");
+    assert!(no_more.is_none());
+
+    let and_again = cursor.next::<Value>().expect("result expected");
+    assert!(and_again.is_none());
+
+    empty_techproducts_collection(host).ok();
 }

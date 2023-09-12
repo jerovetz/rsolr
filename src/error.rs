@@ -13,6 +13,8 @@ impl Debug for RSolrError {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), std::fmt::Error> {
         let mut builder = f.debug_struct("error:RSolrError");
         builder.field("source", &self.source());
+        builder.field("status", &self.status());
+        builder.field("message", &self.message());
         builder.finish()
     }
 }

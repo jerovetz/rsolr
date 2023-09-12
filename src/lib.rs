@@ -96,9 +96,11 @@ pub mod cursor;
 mod facet_fields;
 mod http_client;
 
+use std::ops::Deref;
 use serde::{Deserialize, Serialize};
 use http::StatusCode;
 use mockall_double::double;
+use regex::Regex;
 use url;
 use serde_json::{json, Value};
 use url::Url;
@@ -197,8 +199,14 @@ impl<'a> Client<'a> {
         self.add_query_param("start", &start.to_string())
     }
 
-    pub fn cursor_mark(&mut self, cursor_mark: &str) -> &mut Self {
-        self.add_query_param("cursorMark", cursor_mark)
+    pub fn update_cursor_mark(&mut self, cursor_mark: &str) -> &mut Self {
+        let url = self.url.clone();
+        let query = url.query().expect("Query part is required.");
+        let regex = Regex::new(r"(cursorMark=)(\w|\*)").unwrap();
+        let replace = format!("${{1}}{}", cursor_mark);
+        let updated = regex.replace(query, replace.as_str());
+        self.url.set_query(Some(updated.deref()));
+        self
     }
 
     pub fn url(&mut self, url: &str) -> &mut Self {
@@ -257,6 +265,7 @@ impl<'a> Client<'a> {
             Payload::None => HttpClient::new().get(self.url_str())
         };
 
+
         let http_response = match http_result {
             Ok(response) => response,
             Err(e) => return Err(RSolrError { source: Some(Box::new(e)), status: None, message: None }),
@@ -267,7 +276,8 @@ impl<'a> Client<'a> {
                 self.response = http_response.json::<Value>().ok();
                 let mut cursor = None;
                 if self.url.query().unwrap_or("no url").contains("cursorMark") == true {
-                    cursor = Some(Cursor::new(self.clone()));
+                    let cursor_mark = self.get_response::<Value>().unwrap().nextCursorMark.unwrap();
+                    cursor = Some(Cursor::new(self.clone(), cursor_mark ));
                 }
                 self.url.query_pairs_mut().clear();
                 Ok(cursor)
@@ -779,7 +789,7 @@ mod tests {
             mock.expect_get()
                 .returning(|_| Ok(reqwest::blocking::Response::from(http::response::Builder::new()
                     .status(200)
-                    .body(r#"{"response": {"numFound": 1,"numFoundExact": true,"start": 0,"docs": [{"success": true }]}}"#)
+                    .body(r#"{"response": {"numFound": 1,"numFoundExact": true,"start": 0,"docs": [{"success": true }]}, "nextCursorMark": "cursormark"}"#)
                     .unwrap())));
             mock
         });
@@ -791,5 +801,54 @@ mod tests {
             .cursor()
             .run();
         assert!(result.expect("Ok expected").is_some());
+    }
+
+    #[test]
+    fn test_next_returns_the_next_response() {
+        let _m = get_lock(&MTX);
+        let ctx = HttpClient::new_context();
+        ctx.expect().returning(|| {
+            let mut mock = HttpClient::default();
+            mock.expect_get()
+                .with(eq("http://solr.url/solr/dummy/select?q=*%3A*&rows=1&cursorMark=first_cursor_mark&sort=unique+asc"))
+                .returning(|_| Ok(reqwest::blocking::Response::from(http::response::Builder::new()
+                    .status(200)
+                    .body(r#"{"response": {"numFound": 2,"numFoundExact": true,"start": 0,"docs": [{"success": true }]}, "nextCursorMark": "second_cursor_mark"}"#)
+                    .unwrap())));
+
+            mock.expect_get()
+                .with(eq("http://solr.url/solr/dummy/select?q=*%3A*&rows=1&cursorMark=second_cursor_mark&sort=unique+asc"))
+                .returning(|_| Ok(reqwest::blocking::Response::from(http::response::Builder::new()
+                    .status(200)
+                    .body(r#"{"response": {"numFound": 2,"numFoundExact": true,"start": 0,"docs": [{"success2": true }]}, "nextCursorMark": "third_cursor_mark"}"#)
+                    .unwrap())));
+
+            mock.expect_get()
+                .with(eq("http://solr.url/solr/dummy/select?q=*%3A*&rows=1&cursorMark=third_cursor_mark&sort=unique+asc"))
+                .returning(|_| Ok(reqwest::blocking::Response::from(http::response::Builder::new()
+                    .status(200)
+                    .body(r#"{"response": {"numFound": 2,"numFoundExact": true,"start": 0,"docs": []}, "nextCursorMark": "third_cursor_mark"}"#)
+                    .unwrap())));
+
+            mock
+        });
+
+        let mut client = Client::new("http://solr.url", "dummy");
+        client
+            .select("*:*")
+            .rows(1)
+            .cursor()
+            .sort("unique asc");
+
+
+        let mut cursor = Cursor::new(client, "first_cursor_mark".to_owned());
+        let result = cursor.next::<Value>();
+        assert_eq!(result.expect("Ok expected").expect("Response expected").response.expect("solr response expected").docs[0].get("success").unwrap(), true);
+
+        let result2 = cursor.next::<Value>();
+        assert_eq!(result2.expect("Ok expected").expect("Response expected").response.expect("solr response expected").docs[0].get("success2").unwrap(), true);
+
+        let result3 = cursor.next::<Value>();
+        assert!(result3.expect("Ok expected").is_none());
     }
 }
