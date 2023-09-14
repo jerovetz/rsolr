@@ -66,8 +66,10 @@ impl RSolrError {
     /// Gets the error message, which could be a Solr server error message, a JSON processing error text
     /// or a raw text body, if client can't parse it as JSON.
     pub fn message(&self) -> Option<&str> {
-        let static_message = Box::leak(self.message.as_ref().unwrap().clone().into_boxed_str());
-        Some(static_message)
+        match self.message.clone() {
+            Some(message) => Some(Box::leak(message.into_boxed_str())),
+            _ => None
+        }
     }
 
 

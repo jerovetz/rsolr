@@ -5,6 +5,7 @@ use crate::error::RSolrError;
 use crate::solr_response::SolrResponse;
 
 /// Pagination cursor.
+#[derive(Debug)]
 pub struct Cursor<'a> {
     client: Client<'a>,
     cursor_mark: String,

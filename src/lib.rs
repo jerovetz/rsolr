@@ -152,7 +152,7 @@ impl RequestHandlers {
     pub const DELETE: &'static str = "update";
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Client<'a> {
     request_handler: &'a str,
     url: Url,
