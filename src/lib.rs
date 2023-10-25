@@ -395,7 +395,7 @@ mod tests {
     }
 
     #[test]
-    fn test_build_a_url_from_parameters() {
+    fn build_a_url_from_parameters() {
         let mut params = Client::new("http://host:8983", "collection");
         params
             .request_handler("request_handler")
@@ -406,7 +406,7 @@ mod tests {
     }
 
     #[test]
-    fn test_build_a_url_from_parameters_set_autocommit() {
+    fn build_a_url_from_parameters_set_autocommit() {
         let mut params = Client::new("http://host:8983", "collection");
         params
             .request_handler("request_handler")
@@ -417,7 +417,7 @@ mod tests {
     }
 
     #[test]
-    fn test_build_a_url_with_start_and_rows() {
+    fn build_a_url_with_start_and_rows() {
         let mut params = Client::new("http://host:8983", "collection");
         params
             .request_handler("request_handler")
@@ -429,7 +429,7 @@ mod tests {
     }
 
     #[test]
-    fn test_build_a_url_with_default_field() {
+    fn build_a_url_with_default_field() {
         let mut params = Client::new("http://host:8983", "collection");
         params
             .request_handler("request_handler")
@@ -440,7 +440,7 @@ mod tests {
     }
 
     #[test]
-    fn test_run_calls_get() {
+    fn run_calls_get() {
         let _m = get_lock(&MTX);
 
         let ctx = HttpClient::new_context();
@@ -467,7 +467,7 @@ mod tests {
     }
 
     #[test]
-    fn test_run_calls_get_with_single_facet() {
+    fn run_calls_get_with_single_facet() {
         let _m = get_lock(&MTX);
 
         let ctx = HttpClient::new_context();
@@ -509,7 +509,7 @@ mod tests {
     }
 
     #[test]
-    fn test_run_calls_get_with_facet_query() {
+    fn run_calls_get_with_facet_query() {
         let _m = get_lock(&MTX);
 
         let ctx = HttpClient::new_context();
@@ -549,7 +549,7 @@ mod tests {
     }
 
     #[test]
-    fn test_run_calls_get_with_facet_query_and_fields_with_a_single_facet_switch() {
+    fn run_calls_get_with_facet_query_and_fields_with_a_single_facet_switch() {
         let _m = get_lock(&MTX);
 
         let ctx = HttpClient::new_context();
@@ -592,7 +592,7 @@ mod tests {
     }
 
     #[test]
-    fn test_run_calls_get_with_facet_query_and_fields_with_a_single_facet_switch_facet_comes_first() {
+    fn run_calls_get_with_facet_query_and_fields_with_a_single_facet_switch_facet_comes_first() {
         let _m = get_lock(&MTX);
 
         let ctx = HttpClient::new_context();
@@ -635,7 +635,7 @@ mod tests {
     }
 
     #[test]
-    fn test_run_calls_post_with_url_and_body() {
+    fn run_calls_post_with_url_and_body() {
         let _m = get_lock(&MTX);
 
         let ctx = HttpClient::new_context();
@@ -663,7 +663,7 @@ mod tests {
     }
 
     #[test]
-    fn test_select_responds_rsolr_error_with_other_problem_if_dunno() {
+    fn select_responds_rsolr_error_with_other_problem_if_dunno() {
         let _m = get_lock(&MTX);
         let ctx = HttpClient::new_context();
 
@@ -687,7 +687,7 @@ mod tests {
     }
 
     #[test]
-    fn test_select_responds_rsolr_error_with_raw_text_body_and_status_code_if_no_standard_message() {
+    fn select_responds_rsolr_error_with_raw_text_body_and_status_code_if_no_standard_message() {
         let _m = get_lock(&MTX);
         let ctx = HttpClient::new_context();
         ctx.expect().returning(|| {
@@ -710,7 +710,7 @@ mod tests {
     }
 
     #[test]
-    fn test_create_responds_rsolr_error_with_other_problem_if_dunno() {
+    fn create_responds_rsolr_error_with_other_problem_if_dunno() {
         let _m = get_lock(&MTX);
         let ctx = HttpClient::new_context();
         ctx.expect().returning(|| {
@@ -734,7 +734,7 @@ mod tests {
     }
 
     #[test]
-    fn test_create_responds_rsolr_error_with_raw_text_body_and_status_code_if_no_standard_message() {
+    fn create_responds_rsolr_error_with_raw_text_body_and_status_code_if_no_standard_message() {
         let _m = get_lock(&MTX);
         let ctx = HttpClient::new_context();
         ctx.expect().returning(|| {
@@ -758,7 +758,7 @@ mod tests {
     }
 
     #[test]
-    fn test_delete_responds_rsolr_error_with_other_problem_if_dunno() {
+    fn delete_responds_rsolr_error_with_other_problem_if_dunno() {
         let _m = get_lock(&MTX);
         let ctx = HttpClient::new_context();
         ctx.expect().returning(|| {
@@ -782,7 +782,7 @@ mod tests {
     }
 
     #[test]
-    fn test_delete_responds_rsolr_error_with_raw_text_body_and_status_code_if_no_standard_message() {
+    fn delete_responds_rsolr_error_with_raw_text_body_and_status_code_if_no_standard_message() {
         let _m = get_lock(&MTX);
         let ctx = HttpClient::new_context();
         ctx.expect().returning(|| {
@@ -805,7 +805,7 @@ mod tests {
     }
 
     #[test]
-    fn test_run_responds_cursor_if_cursor_set() {
+    fn run_responds_cursor_if_cursor_set() {
         let _m = get_lock(&MTX);
         let ctx = HttpClient::new_context();
         ctx.expect().returning(|| {
@@ -828,7 +828,7 @@ mod tests {
     }
 
     #[test]
-    fn test_next_returns_the_next_response() {
+    fn next_returns_the_next_response() {
         let _m = get_lock(&MTX);
         let ctx = HttpClient::new_context();
         ctx.expect().returning(|| {

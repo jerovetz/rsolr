@@ -59,7 +59,7 @@ mod tests {
     use crate::facet_fields::FacetFields;
 
     #[test]
-    fn test_get_custom_field_count() {
+    fn get_custom_field_count() {
         let fields = serde_json::from_str(r#"{"field_value": ["val1", 123, "val2", 234] }"#).unwrap();
         let facet_fields = FacetFields { fields };
 
@@ -67,7 +67,7 @@ mod tests {
     }
 
     #[test]
-    fn test_returns_none_if_no_field() {
+    fn returns_none_if_no_field() {
         let fields = serde_json::from_str(r#"{"field_value": ["val1", 123, "val2", 234] }"#).unwrap();
         let facet_fields = FacetFields { fields };
 
@@ -75,7 +75,7 @@ mod tests {
     }
 
     #[test]
-    fn test_returns_none_if_no_field_value() {
+    fn returns_none_if_no_field_value() {
         let fields = serde_json::from_str(r#"{"field_value": ["val1", 123, "val2", 234] }"#).unwrap();
         let facet_fields = FacetFields { fields };
 
@@ -83,7 +83,7 @@ mod tests {
     }
 
     #[test]
-    fn test_get_all_field_values() {
+    fn get_all_field_values() {
         let fields = serde_json::from_str(r#"{"field_value": ["val1", 123, "val2", 234] }"#).unwrap();
         let facet_fields = FacetFields { fields };
 
@@ -93,7 +93,7 @@ mod tests {
     }
 
     #[test]
-    fn test_get_all_none_from_notexisting_field() {
+    fn get_all_none_from_notexisting_field() {
         let fields = serde_json::from_str(r#"{"field_value": ["val1", 123, "val2", 234] }"#).unwrap();
         let facet_fields = FacetFields { fields };
         assert_eq!(facet_fields.get_all_values_of("field_value2342"), None);

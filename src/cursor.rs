@@ -58,7 +58,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_response_returned_from_client() {
+    fn response_returned_from_client() {
         let client = Client::new("http://solr.url", "dummy");
         let cursor = Cursor { client, cursor_mark: "".to_string(), url: None };
 

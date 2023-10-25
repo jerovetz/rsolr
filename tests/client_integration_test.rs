@@ -46,7 +46,7 @@ fn get_lock(m: &'static Mutex<()>) -> MutexGuard<'static, ()> {
 
 
 #[test]
-fn test_query_document_value_returned() -> Result<(), reqwest::Error> {
+fn query_document_value_returned() -> Result<(), reqwest::Error> {
     let _m = get_lock(&MTX);
     let collection = "default";
     let host = "http://127.0.0.1:8983";
@@ -72,7 +72,7 @@ fn test_query_document_value_returned() -> Result<(), reqwest::Error> {
 }
 
 #[test]
-fn test_query_returns_error_if_cannot_serialize() -> Result<(), reqwest::Error> {
+fn query_returns_error_if_cannot_serialize() -> Result<(), reqwest::Error> {
     let _m = get_lock(&MTX);
     let collection = "default";
     let host = "http://127.0.0.1:8983";
@@ -99,7 +99,7 @@ fn test_query_returns_error_if_cannot_serialize() -> Result<(), reqwest::Error> 
 }
 
 #[test]
-fn test_query_responds_rsolr_error_with_embedded_network_error() {
+fn query_responds_rsolr_error_with_embedded_network_error() {
     let _m = get_lock(&MTX);
     let collection = "default";
     let host = "http://not_existing_host:8983";
@@ -113,7 +113,7 @@ fn test_query_responds_rsolr_error_with_embedded_network_error() {
 }
 
 #[test]
-fn test_query_responds_rsolr_error_with_embedded_no_collection_error() {
+fn query_responds_rsolr_error_with_embedded_no_collection_error() {
     let _m = get_lock(&MTX);
     let collection = "not_existing_collection";
     let host = "http://localhost:8983";
@@ -127,7 +127,7 @@ fn test_query_responds_rsolr_error_with_embedded_no_collection_error() {
 }
 
 #[test]
-fn test_query_responds_rsolr_error_with_solr_problem_if_query_is_bad() {
+fn query_responds_rsolr_error_with_solr_problem_if_query_is_bad() {
     let _m = get_lock(&MTX);
     let collection = "default";
     let host = "http://localhost:8983";
@@ -142,7 +142,7 @@ fn test_query_responds_rsolr_error_with_solr_problem_if_query_is_bad() {
 }
 
 #[test]
-fn test_create_with_auto_commit_inserts_document() {
+fn create_with_auto_commit_inserts_document() {
     let _m = get_lock(&MTX);
     let collection = "default";
     let base_url = "http://localhost:8983";
@@ -164,7 +164,7 @@ fn test_create_with_auto_commit_inserts_document() {
 }
 
 #[test]
-fn test_create_inserts_any_serializable_document() {
+fn create_inserts_any_serializable_document() {
     let _m = get_lock(&MTX);
     let collection = "default";
     let base_url = "http://localhost:8983";
@@ -186,7 +186,7 @@ fn test_create_inserts_any_serializable_document() {
 }
 
 #[test]
-fn test_create_without_auto_commit_uploads_document_and_index_on_separated_commit_responds_nothing() {
+fn create_without_auto_commit_uploads_document_and_index_on_separated_commit_responds_nothing() {
     let _m = get_lock(&MTX);
     let collection = "default";
     let host = "http://localhost:8983";
@@ -214,7 +214,7 @@ fn test_create_without_auto_commit_uploads_document_and_index_on_separated_commi
 }
 
 #[test]
-fn test_create_responds_rsolr_error_with_embedded_network_error() {
+fn create_responds_rsolr_error_with_embedded_network_error() {
     let _m = get_lock(&MTX);
     let collection = "default";
     let host = "http://not_existing_host:8983";
@@ -230,7 +230,7 @@ fn test_create_responds_rsolr_error_with_embedded_network_error() {
 }
 
 #[test]
-fn test_create_responds_rsolr_error_with_embedded_no_collection_error() {
+fn create_responds_rsolr_error_with_embedded_no_collection_error() {
     let _m = get_lock(&MTX);
     let collection = "not_existing_collection";
     let host = "http://localhost:8983";
@@ -247,7 +247,7 @@ fn test_create_responds_rsolr_error_with_embedded_no_collection_error() {
 }
 
 #[test]
-fn test_delete_deletes_docs() {
+fn delete_deletes_docs() {
     let _m = get_lock(&MTX);
     let collection = "default";
     let host = "http://localhost:8983";
@@ -272,7 +272,7 @@ fn test_delete_deletes_docs() {
 }
 
 #[test]
-fn test_delete_deletes_docs_specified_by_query() {
+fn delete_deletes_docs_specified_by_query() {
     let _m = get_lock(&MTX);
     let collection = "default";
     let host = "http://localhost:8983";
@@ -295,7 +295,7 @@ fn test_delete_deletes_docs_specified_by_query() {
 }
 
 #[test]
-fn test_without_autocommit_delete_deletes_docs_after_commit_specified_by_query() {
+fn without_autocommit_delete_deletes_docs_after_commit_specified_by_query() {
     let _m = get_lock(&MTX);
     let collection = "default";
     let host = "http://localhost:8983";
@@ -319,7 +319,7 @@ fn test_without_autocommit_delete_deletes_docs_after_commit_specified_by_query()
 }
 
 #[test]
-fn test_delete_responds_rsolr_error_with_embedded_network_error() {
+fn delete_responds_rsolr_error_with_embedded_network_error() {
     let _m = get_lock(&MTX);
     let collection = "default";
     let host = "http://not_existing_host:8983";
@@ -333,7 +333,7 @@ fn test_delete_responds_rsolr_error_with_embedded_network_error() {
 }
 
 #[test]
-fn test_delete_responds_rsolr_error_with_embedded_no_collection_error() {
+fn delete_responds_rsolr_error_with_embedded_no_collection_error() {
     let _m = get_lock(&MTX);
     let collection = "not_existing_collection";
     let host = "http://localhost:8983";
@@ -347,7 +347,7 @@ fn test_delete_responds_rsolr_error_with_embedded_no_collection_error() {
 }
 
 #[test]
-fn test_delete_responds_rsolr_error_with_solr_problem_if_query_is_bad() {
+fn delete_responds_rsolr_error_with_solr_problem_if_query_is_bad() {
     let _m = get_lock(&MTX);
     let collection = "default";
     let host = "http://localhost:8983";
@@ -364,7 +364,7 @@ fn test_delete_responds_rsolr_error_with_solr_problem_if_query_is_bad() {
 }
 
 #[test]
-fn test_cursor_used_to_fetch_data() {
+fn cursor_used_to_fetch_data() {
 
     fn add<P: Serialize + Clone>(client: &mut Client, document: P) {
         client

@@ -262,39 +262,39 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_query_create_from_str() {
+    fn query_create_from_str() {
         assert_eq!(Query::from_str("*:*").as_str(), "*:*");
     }
 
     #[test]
-    fn test_query_create_from_a_single_term() {
+    fn query_create_from_a_single_term() {
         let term = Term::from_str("*:*");
         assert_eq!(Query::from_term(term).as_str(), "*:*");
     }
 
     #[test]
-    fn test_query_concat_two_terms() {
+    fn query_concat_two_terms() {
         let term = Term::from_str("*:*");
         let term2 = Term::from_str("another term");
         assert_eq!(Query::from_term(term).term(term2).as_str(), "*:* \"another term\"");
     }
 
     #[test]
-    fn test_query_concat_two_terms_with_and() {
+    fn query_concat_two_terms_with_and() {
         let term = Term::from_str("*:*");
         let term2 = Term::from_str("another term");
         assert_eq!(Query::from_term(term).and().term(term2).as_str(), "*:* AND \"another term\"");
     }
 
     #[test]
-    fn test_query_concat_two_terms_with_or() {
+    fn query_concat_two_terms_with_or() {
         let term = Term::from_str("*:*");
         let term2 = Term::from_str("another term");
         assert_eq!(Query::from_term(term).or().term(term2).as_str(), "*:* OR \"another term\"");
     }
 
     #[test]
-    fn test_query_concat_a_term_with_a_subquery() {
+    fn query_concat_a_term_with_a_subquery() {
         let term = Term::from_str("another term");
         let query =
             Query::from_term(Term::from_str("one_thing"))
@@ -305,60 +305,60 @@ mod tests {
     }
 
     #[test]
-    fn test_term_as_str_returns_term_as_str_in_quotes() {
+    fn term_as_str_returns_term_as_str_in_quotes() {
         let term = "term term";
         assert_eq!(Term::from_str(term).as_str(), format!("\"{}\"", term));
     }
 
     #[test]
-    fn test_term_as_str_returns_term_without_quotes() {
+    fn term_as_str_returns_term_without_quotes() {
         let term = "term";
         assert_eq!(Term::from_str(term).as_str(), term);
     }
 
     #[test]
-    fn test_term_in_field_decorate_it_with_field() {
+    fn term_in_field_decorate_it_with_field() {
         let term_str = "term term";
         let term = Term::from_str(term_str);
         assert_eq!(term.in_field("field").as_str(), "field: \"term term\"");
     }
 
     #[test]
-    fn test_term_boost_term_chained_with_field() {
+    fn term_boost_term_chained_with_field() {
         let term = Term::from_str("term term");
         let term_str = term.in_field("field").boost(3.2).as_str();
         assert_eq!(term_str, "field: \"term term\"^3.2");
     }
 
     #[test]
-    fn test_term_tilde_term_chained_with_boost() {
+    fn term_tilde_term_chained_with_boost() {
         let term = Term::from_str("term term");
         let term_str = term.boost(3.2).tilde(20).as_str();
         assert_eq!(term_str, "\"term term\"^3.2~20");
     }
 
     #[test]
-    fn test_term_require_term() {
+    fn term_require_term() {
         let term = Term::from_str("term");
         let term_str = term.required().as_str();
         assert_eq!(term_str, "+term");
     }
 
     #[test]
-    fn test_term_prohibit_term() {
+    fn term_prohibit_term() {
         let term = Term::from_str("term");
         let term_str = term.prohibit().as_str();
         assert_eq!(term_str, "-term");
     }
 
     #[test]
-    fn test_date_as_str_returns_date() {
+    fn date_as_str_returns_date() {
         let date_string = "NOW";
         assert_eq!(Date::new(date_string).as_str(), date_string);
     }
 
     #[test]
-    fn test_date_plus_concat_text() {
+    fn date_plus_concat_text() {
         let date_string = "NOW";
         let expected = "NOW+2MONTHS";
         let date = Date::new(date_string);
@@ -366,7 +366,7 @@ mod tests {
     }
 
     #[test]
-    fn test_date_minus_concat_text() {
+    fn date_minus_concat_text() {
         let date_string = "NOW";
         let expected = "NOW-2YEARS";
         let date = Date::new(date_string);
@@ -374,13 +374,13 @@ mod tests {
     }
 
     #[test]
-    fn test_range_create_inclusive_range() {
+    fn range_create_inclusive_range() {
         let range = Range::inclusive("a", "b");
         assert_eq!(range.as_str(), "[a TO b]");
     }
 
     #[test]
-    fn test_range_create_exclusive_range() {
+    fn range_create_exclusive_range() {
         let range = Range::exclusive("a", "b");
         assert_eq!(range.as_str(), "{a TO b}");
     }
