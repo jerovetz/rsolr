@@ -29,6 +29,8 @@ pub struct SolrResponse<T> where T: Clone {
     #[serde(default = "empty_facet_counts")]
     pub facet_counts: Option<Facet>,
     pub nextCursorMark: Option<String>,
+
+    /// Container for remaining fields.
     #[serde(flatten)]
     pub raw: Value
 }
