@@ -20,12 +20,12 @@ impl<'a> Cursor<'a> {
     }
 
     /// Wrapper of the client response getter, you can get the first page response through the cursor as well.
-    pub fn get_response<T: for<'de> Deserialize<'de> + Clone>(&self) -> Result<SolrResponse<T>, RSolrError>{
+    pub fn get_response<T: for<'de> Deserialize<'de> + Clone + Default>(&self) -> Result<SolrResponse<T>, RSolrError>{
         self.client.get_response::<T>()
     }
 
     /// Fetches and parse the pages.
-    pub fn next<T: for<'de> Deserialize<'de> + Clone>(&mut self) -> Result<Option<SolrResponse<T>>, RSolrError>{
+    pub fn next<T: for<'de> Deserialize<'de> + Clone + Default>(&mut self) -> Result<Option<SolrResponse<T>>, RSolrError>{
         if self.url.is_none() {
             self.url = Some(Url::parse(self.client.url_str()).expect("Url parsing failed unexpectedly"));
         } else {

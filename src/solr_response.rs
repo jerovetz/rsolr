@@ -1,6 +1,6 @@
 
 use serde::{Deserialize};
-use serde_json::Value;
+use serde_json::{json, Value};
 use crate::facet_fields::FacetFields;
 
 /// The response part of the server response body.
@@ -28,7 +28,15 @@ pub struct SolrResponse<T> where T: Clone {
     pub response: Option<Response<T>>,
     #[serde(default = "empty_facet_counts")]
     pub facet_counts: Option<Facet>,
-    pub nextCursorMark: Option<String>
+    pub nextCursorMark: Option<String>,
+    #[serde(flatten)]
+    pub raw: Value
+}
+
+impl<T> Default for SolrResponse<T> where T: Clone {
+    fn default() -> Self {
+        SolrResponse { response: None, facet_counts: None, nextCursorMark: None, raw: json!("{}") }
+    }
 }
 
 fn empty_response<T>() -> Option<Response<T>> {

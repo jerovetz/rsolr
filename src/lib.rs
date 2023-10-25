@@ -324,13 +324,13 @@ impl<'a> Client<'a> {
         }
     }
 
-    pub fn get_response<T: for<'de> Deserialize<'de> + Clone>(&self) -> Result<SolrResponse<T>, RSolrError>{
+    pub fn get_response<T: for<'de> Deserialize<'de> + Clone + Default>(&self) -> Result<SolrResponse<T>, RSolrError>{
         match self.response.clone() {
             Some(v) => match serde_json::from_value(v) {
                 Ok(response) => Ok(response),
                 Err(e) => Err(RSolrError{ source: Some(Box::new(e)), status: None, message: Some("Cannot deserialize response into object".to_owned()) })
             },
-            _ => Ok(SolrResponse { response: None, facet_counts: None, nextCursorMark: None })
+            _ => Ok(SolrResponse::default())
         }
     }
 
@@ -632,6 +632,28 @@ mod tests {
             .query("*:*")
             .run();
         assert!(result.is_ok());
+    }
+
+    #[test]
+    fn run_deserialize_remaining_fields_into_raw() {
+        let _m = get_lock(&MTX);
+        let ctx = HttpClient::new_context();
+        ctx.expect().returning(|| {
+            let mut mock = HttpClient::default();
+            mock.expect_get()
+                .with(eq("http://localhost:8983/solr/default/select?q=*%3A*"))
+                .returning(|_| Ok(reqwest::blocking::Response::from(http::response::Builder::new()
+                    .status(200)
+                    .body(r#"{"response": {"numFound": 1,"numFoundExact": true,"start": 0,"docs": [{"success": true }]},"anything":"other fields"}"#)
+                    .unwrap())));
+            mock
+        });
+        let mut client = Client::new("http://localhost:8983", "default");
+        let result = client
+            .select("*:*")
+            .run();
+        assert!(result.is_ok());
+        assert_eq!(client.get_response::<Value>().unwrap().raw.get("anything").unwrap(),"other fields");
     }
 
     #[test]

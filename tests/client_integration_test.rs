@@ -9,7 +9,7 @@ use reqwest::StatusCode;
 use serde::{Serialize, Deserialize};
 use serde_json::{json, Value};
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug, Default)]
 struct ExcitingDocument {
     desire: String,
     vision: Vec<String>,
