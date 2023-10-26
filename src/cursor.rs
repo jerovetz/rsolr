@@ -36,7 +36,7 @@ impl<'a> Cursor<'a> {
             Ok(_) => {
                 match self.get_response::<T>() {
                     Ok(response) => {
-                        let next_cursor_mark = response.clone().nextCursorMark.expect("nextcursormark should be there");
+                        let next_cursor_mark = response.clone().nextCursorMark.expect("nextcursormark should be in response");
                         if self.cursor_mark == next_cursor_mark {
                             return Ok(None)
                         }

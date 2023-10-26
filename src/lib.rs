@@ -297,18 +297,23 @@ impl<'a> Client<'a> {
         match http_response.status() {
             StatusCode::OK => {
                 self.response = http_response.json::<Value>().ok();
-                let mut cursor = None;
-                if self.url.query().unwrap_or("no url").contains("cursorMark") == true {
-                    let cursor_mark = self.get_response::<Value>().unwrap().nextCursorMark.unwrap();
-                    cursor = Some(Cursor::new(self.clone(), cursor_mark ));
+                match self.url.query().unwrap_or("no url").contains("cursorMark") {
+                    true => {
+                        let cursor_mark = self.get_response::<Value>().unwrap().nextCursorMark.unwrap();
+                        let cursor = Cursor::new(self.clone(), cursor_mark);
+                        self.url.query_pairs_mut().clear();
+                        Ok(Some(cursor))
+                    },
+                    false => {
+                        self.url.query_pairs_mut().clear();
+                        Ok(None)
+                    }
                 }
-                self.url.query_pairs_mut().clear();
-                Ok(cursor)
             },
             StatusCode::NOT_FOUND => return Err(RSolrError { source: None, status: Some(StatusCode::NOT_FOUND), message: None }),
             other_status => {
                 let body_text = http_response.text().unwrap();
-                return match serde_json::from_str::<Value>(&body_text) {
+                match serde_json::from_str::<Value>(&body_text) {
                     Ok(r) => Err(RSolrError { source: None, status: Some(other_status), message: Some(r["error"]["msg"].as_str().unwrap().to_owned()) }),
                     Err(e) => {
                         Err(

@@ -365,7 +365,6 @@ fn delete_responds_rsolr_error_with_solr_problem_if_query_is_bad() {
 
 #[test]
 fn cursor_used_to_fetch_data() {
-
     fn add<P: Serialize + Clone>(client: &mut Client, document: P) {
         client
             .auto_commit()
@@ -394,7 +393,6 @@ fn cursor_used_to_fetch_data() {
         .run()
         .expect("result expected")
         .expect("cursor expected");
-
 
     let first_page = cursor.get_response::<Value>().expect("result expected");
     assert_eq!(first_page.response.unwrap().docs.get(0).unwrap().get("okapi").unwrap().get(0).unwrap(), "egerke");
