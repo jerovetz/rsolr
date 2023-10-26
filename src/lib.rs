@@ -289,7 +289,6 @@ impl<'a> Client<'a> {
             Payload::None => HttpClient::new().get(self.url_str())
         };
 
-
         let http_response = match http_result {
             Ok(response) => response,
             Err(e) => return Err(RSolrError { source: Some(Box::new(e)), status: None, message: None }),
