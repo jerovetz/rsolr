@@ -174,15 +174,6 @@ impl<'a> Client<'a> {
         self
     }
 
-    fn switch_on_facet(&mut self) {
-        for query_pair in self.url.query_pairs() {
-            if query_pair.0 == "facet" && query_pair.1 == "on" {
-                return
-            }
-        }
-        self.url.query_pairs_mut().append_pair("facet", "on");
-    }
-
     /// Shorthand for facet_field.
     pub fn facet_field(&mut self, field: &str) -> &mut Self {
         self.switch_on_facet();
@@ -379,6 +370,15 @@ impl<'a> Client<'a> {
     /// Shorthand for setting edismax query parser.
     pub fn edismax(&mut self) -> &mut Self {
         self.add_query_param("defType", "edismax")
+    }
+
+    fn switch_on_facet(&mut self) {
+        for query_pair in self.url.query_pairs() {
+            if query_pair.0 == "facet" && query_pair.1 == "on" {
+                return
+            }
+        }
+        self.url.query_pairs_mut().append_pair("facet", "on");
     }
 
     fn payload(&mut self, payload: Payload) -> &mut Self {
