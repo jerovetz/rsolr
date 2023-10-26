@@ -17,7 +17,11 @@ pub struct Response<T> {
 #[derive(Deserialize, Clone, Debug)]
 pub struct Facet {
     pub facet_queries: Value,
-    pub facet_fields: FacetFields
+    pub facet_fields: FacetFields,
+
+    /// Container for remaining fields.
+    #[serde(flatten)]
+    pub raw: Value
 }
 
 /// The rendered response body. It uses the default writer: [JSON Response Writer](https://solr.apache.org/guide/8_1/response-writers.html#json-response-writer).

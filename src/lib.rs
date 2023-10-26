@@ -440,7 +440,41 @@ mod tests {
     }
 
     #[test]
-    fn run_calls_get() {
+    fn url_built_with_facet_if_facet_fields_set() {
+        let mut params = Client::new("http://host:8983", "collection");
+        params
+            .request_handler("request_handler")
+            .facet_field("facetfield");
+
+        let url_string = params.url_str();
+        assert_eq!(url_string, "http://host:8983/solr/collection/request_handler?facet=on&facet_field=facetfield");
+    }
+
+    #[test]
+    fn url_built_with_facet_if_facet_query_set() {
+        let mut params = Client::new("http://host:8983", "collection");
+        params
+            .request_handler("request_handler")
+            .facet_query("facet");
+
+        let url_string = params.url_str();
+        assert_eq!(url_string, "http://host:8983/solr/collection/request_handler?facet=on&facet_query=facet");
+    }
+
+    #[test]
+    fn url_built_with_facet_correctly_if_both_set() {
+        let mut params = Client::new("http://host:8983", "collection");
+        params
+            .request_handler("request_handler")
+            .facet_field("facetfield")
+            .facet_query("facet");
+
+        let url_string = params.url_str();
+        assert_eq!(url_string, "http://host:8983/solr/collection/request_handler?facet=on&facet_field=facetfield&facet_query=facet");
+    }
+
+    #[test]
+    fn run_formats_url_and_result() {
         let _m = get_lock(&MTX);
 
         let ctx = HttpClient::new_context();
@@ -467,7 +501,7 @@ mod tests {
     }
 
     #[test]
-    fn run_calls_get_with_single_facet() {
+    fn run_handles_facet_fields() {
         let _m = get_lock(&MTX);
 
         let ctx = HttpClient::new_context();
@@ -509,7 +543,7 @@ mod tests {
     }
 
     #[test]
-    fn run_calls_get_with_facet_query() {
+    fn run_handles_facet_query_and_returns_unimplemented_facets_in_raw() {
         let _m = get_lock(&MTX);
 
         let ctx = HttpClient::new_context();
@@ -526,9 +560,9 @@ mod tests {
                                     "anything: *": 324534
                                 },
                                 "facet_fields": {},
-                                "facet_ranges":{},
-                                "facet_intervals":{},
-                                "facet_heatmaps":{}
+                                "facet_ranges":"interesting ranges",
+                                "facet_intervals":"interesting intervals",
+                                "facet_heatmaps":"interesting heatmaps"
                             }
                         }"#)
                     .unwrap())));
@@ -546,96 +580,14 @@ mod tests {
         assert!(result.is_ok());
         let facets = command.get_response::<Value>().unwrap().facet_counts.unwrap();
         assert_eq!(facets.facet_queries, serde_json::from_str::<Value>(r#"{"anything: *": 324534 }"#).unwrap());
+
+        assert_eq!(facets.raw.get("facet_ranges").unwrap(), "interesting ranges");
+        assert_eq!(facets.raw.get("facet_intervals").unwrap(), "interesting intervals");
+        assert_eq!(facets.raw.get("facet_heatmaps").unwrap(), "interesting heatmaps");
     }
 
     #[test]
-    fn run_calls_get_with_facet_query_and_fields_with_a_single_facet_switch() {
-        let _m = get_lock(&MTX);
-
-        let ctx = HttpClient::new_context();
-        ctx.expect().returning(|| {
-            let mut mock = HttpClient::default();
-            mock.expect_get()
-                .with(eq("http://localhost:8983/solr/default/select?q=*%3A*&facet=on&facet_query=anything%3A+*&facet_field=exists"))
-                .returning(|_| Ok(reqwest::blocking::Response::from(http::response::Builder::new()
-                    .status(200)
-                    .body(r#"{
-                            "response": {"numFound": 1,"numFoundExact": true,"start": 0,"docs": [{"success": true }]},
-                            "facet_counts": {
-                                "facet_queries": {
-                                    "anything: *": 324534
-                                },
-                                "facet_fields": {
-                                   "exists": [
-                                        "term1", 23423, "term2", 993939
-                                    ]
-                                },
-                                "facet_ranges":{},
-                                "facet_intervals":{},
-                                "facet_heatmaps":{}
-                            }
-                        }"#)
-                    .unwrap())));
-            mock
-        });
-
-        let collection = "default";
-        let host = "http://localhost:8983";
-        let mut command = Client::new(host, collection);
-        let result = command
-            .request_handler("select")
-            .query("*:*")
-            .facet_query("anything: *")
-            .facet_field("exists")
-            .run();
-        assert!(result.is_ok());
-    }
-
-    #[test]
-    fn run_calls_get_with_facet_query_and_fields_with_a_single_facet_switch_facet_comes_first() {
-        let _m = get_lock(&MTX);
-
-        let ctx = HttpClient::new_context();
-        ctx.expect().returning(|| {
-            let mut mock = HttpClient::default();
-            mock.expect_get()
-                .with(eq("http://localhost:8983/solr/default/select?facet=on&facet_query=anything%3A+*&facet_field=exists&q=*%3A*"))
-                .returning(|_| Ok(reqwest::blocking::Response::from(http::response::Builder::new()
-                    .status(200)
-                    .body(r#"{
-                            "response": {"numFound": 1,"numFoundExact": true,"start": 0,"docs": [{"success": true }]},
-                            "facet_counts": {
-                                "facet_queries": {
-                                    "anything: *": 324534
-                                },
-                                "facet_fields": {
-                                   "exists": [
-                                        "term1", 23423, "term2", 993939
-                                    ]
-                                },
-                                "facet_ranges":{},
-                                "facet_intervals":{},
-                                "facet_heatmaps":{}
-                            }
-                        }"#)
-                    .unwrap())));
-            mock
-        });
-
-        let collection = "default";
-        let host = "http://localhost:8983";
-        let mut command = Client::new(host, collection);
-        let result = command
-            .request_handler("select")
-            .facet_query("anything: *")
-            .facet_field("exists")
-            .query("*:*")
-            .run();
-        assert!(result.is_ok());
-    }
-
-    #[test]
-    fn run_deserialize_remaining_fields_into_raw() {
+    fn run_deserializes_remaining_fields_into_raw() {
         let _m = get_lock(&MTX);
         let ctx = HttpClient::new_context();
         ctx.expect().returning(|| {
