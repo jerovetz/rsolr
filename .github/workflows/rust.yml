@@ -23,10 +23,12 @@ jobs:
     steps:
     - uses: actions/checkout@v3
     - name: Build
-      run: cargo build --verbose
+      run: |
+       cargo clean
+       cargo build --verbose
     - name: Provision Solr
       run: |
        cargo install cargo-run-script
        cargo run-script solr-provision
     - name: Run tests
-      run: cargo test --verbose -- --test-threads=1
+      run: cargo test --verbose
