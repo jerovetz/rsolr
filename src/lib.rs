@@ -366,6 +366,16 @@ impl<'a> Client<'a> {
             .set_empty_payload()
     }
 
+    /// Shorthand for setting dismax query parser.
+    pub fn dismax(&mut self) -> &mut Self {
+        self.add_query_param("defType", "dismax")
+    }
+
+    /// Shorthand for setting edismax query parser.
+    pub fn edismax(&mut self) -> &mut Self {
+        self.add_query_param("defType", "edismax")
+    }
+
     fn payload(&mut self, payload: Payload) -> &mut Self {
         self.payload = payload;
         self
