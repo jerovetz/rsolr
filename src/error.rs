@@ -71,6 +71,4 @@ impl RSolrError {
             _ => None
         }
     }
-
-
 }

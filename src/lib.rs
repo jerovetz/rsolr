@@ -301,7 +301,7 @@ impl<'a> Client<'a> {
                     }
                 }
             },
-            StatusCode::NOT_FOUND => return Err(RSolrError { source: None, status: Some(StatusCode::NOT_FOUND), message: None }),
+            StatusCode::NOT_FOUND => Err(RSolrError { source: None, status: Some(StatusCode::NOT_FOUND), message: None }),
             other_status => {
                 let body_text = http_response.text().unwrap();
                 match serde_json::from_str::<Value>(&body_text) {
