@@ -1,13 +1,12 @@
 use rsolr::{Client};
 use reqwest::blocking::Client as HttpClient;
 use reqwest::header::CONTENT_TYPE;
-use std::error::Error;
 use std::fmt::Debug;
 use std::sync::{Mutex, MutexGuard};
 use mockall::lazy_static;
-use reqwest::StatusCode;
 use serde::{Serialize, Deserialize};
 use serde_json::{json, Value};
+use rsolr::error::RSolrError;
 
 #[derive(Serialize, Deserialize, Clone, Debug, Default)]
 struct ExcitingDocument {
@@ -92,8 +91,9 @@ fn query_returns_error_if_cannot_serialize() -> Result<(), reqwest::Error> {
     let result= client.select("*:*").run();
     assert!(result.is_ok());
     let response = client.get_response::<ExcitingDocument>();
-    assert!(response.is_err());
-    assert!(response.err().unwrap().source().is_some());
+    let error = response.err().expect("No Error");
+    assert!(matches!(error, RSolrError::Serialization(..)));
+    assert!(format!("{:?}", error).contains("missing field"));
     empty_default_collection(host).ok();
     Ok(())
 }
@@ -107,9 +107,8 @@ fn query_responds_rsolr_error_with_embedded_network_error() {
     let result = client.select("*:*").run();
     assert!(result.is_err());
     let error = result.err().expect("No Error");
-    let original_error_message = error.source().expect("no source error").to_string();
-    assert!(matches!(error.kind(), rsolr::error::ErrorKind::Network));
-    assert_eq!(original_error_message.contains("dns error"), true)
+    assert!(matches!(error, RSolrError::Network {..}));
+    assert!(format!("{:?}", error).contains("dns error"));
 }
 
 #[test]
@@ -121,9 +120,7 @@ fn query_responds_rsolr_error_with_embedded_no_collection_error() {
     let result = client.select("*:*").run();
     assert!(result.is_err());
     let error = result.err().expect("No Error");
-    assert_eq!(error.status().unwrap(), StatusCode::NOT_FOUND);
-    assert!(matches!(error.kind(), rsolr::error::ErrorKind::NotFound));
-    assert!(error.source().is_none());
+    assert!(matches!(error, RSolrError::NotFound))
 }
 
 #[test]
@@ -135,10 +132,8 @@ fn query_responds_rsolr_error_with_solr_problem_if_query_is_bad() {
     let result = client.select("bad: query").run();
     assert!(result.is_err());
     let error = result.err().expect("No Error");
-    assert_eq!(error.status().unwrap(), StatusCode::BAD_REQUEST);
-    matches!(error.kind(), rsolr::error::ErrorKind::SolrSyntax);
-    assert!(error.source().is_none());
-    assert_eq!(error.message(), Some("undefined field bad"));
+    assert!(matches!(error, RSolrError::Syntax(..)));
+    assert!(format!("{:?}", error).contains("undefined field bad"))
 }
 
 #[test]
@@ -224,9 +219,8 @@ fn create_responds_rsolr_error_with_embedded_network_error() {
         .run();
     assert!(result.is_err());
     let error = result.err().expect("No Error");
-    let original_error_message = error.source().expect("no source error").to_string();
-    assert!(matches!(error.kind(), rsolr::error::ErrorKind::Network));
-    assert_eq!(original_error_message.contains("dns error"), true)
+    assert!(matches!(error, RSolrError::Network {..}));
+    assert!(format!("{:?}", error).contains("dns error"));
 }
 
 #[test]
@@ -241,9 +235,7 @@ fn create_responds_rsolr_error_with_embedded_no_collection_error() {
 
     assert!(result.is_err());
     let error = result.err().expect("No Error");
-    assert_eq!(error.status().unwrap(), StatusCode::NOT_FOUND);
-    assert!(matches!(error.kind(), rsolr::error::ErrorKind::NotFound));
-    assert!(error.source().is_none());
+    assert!(matches!(error, RSolrError::NotFound));
 }
 
 #[test]
@@ -327,9 +319,8 @@ fn delete_responds_rsolr_error_with_embedded_network_error() {
     let result = client.delete("*:*").run();
     assert!(result.is_err());
     let error = result.err().expect("No Error");
-    let original_error_message = error.source().expect("no source error").to_string();
-    assert!(matches!(error.kind(), rsolr::error::ErrorKind::Network));
-    assert_eq!(original_error_message.contains("dns error"), true)
+    assert!(matches!(error, RSolrError::Network {..}));
+    assert!(format!("{:?}", error).contains("dns error"));
 }
 
 #[test]
@@ -341,9 +332,7 @@ fn delete_responds_rsolr_error_with_embedded_no_collection_error() {
     let result = client.delete("*:*").run();
     assert!(result.is_err());
     let error = result.err().expect("No Error");
-    assert_eq!(error.status().unwrap(), StatusCode::NOT_FOUND);
-    assert!(matches!(error.kind(), rsolr::error::ErrorKind::NotFound));
-    assert!(error.source().is_none());
+    assert!(matches!(error, RSolrError::NotFound))
 }
 
 #[test]
@@ -355,12 +344,10 @@ fn delete_responds_rsolr_error_with_solr_problem_if_query_is_bad() {
     let result = client.delete("bad: query").run();
     assert!(result.is_err());
     let error = result.err().expect("No Error");
-    assert_eq!(error.status().unwrap(), StatusCode::BAD_REQUEST);
-    matches!(error.kind(), rsolr::error::ErrorKind::SolrSyntax);
-    assert!(error.source().is_none());
+    assert!(matches!(error, RSolrError::Syntax(..)));
+    assert!(format!("{:?}", error).contains("undefined field bad"));
     assert!(client.get_response::<Value>().unwrap().facet_counts.is_none());
     assert!(client.get_response::<Value>().unwrap().response.is_none());
-    assert_eq!(error.message(), Some("undefined field bad"));
 }
 
 #[test]

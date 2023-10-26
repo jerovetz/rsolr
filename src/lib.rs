@@ -113,6 +113,8 @@
 //! }
 //! ```
 
+#![feature(error_generic_member_access)]
+
 pub mod error;
 pub mod solr_response;
 pub mod query;
@@ -282,7 +284,7 @@ impl<'a> Client<'a> {
 
         let http_response = match http_result {
             Ok(response) => response,
-            Err(e) => return Err(RSolrError { source: Some(Box::new(e)), status: None, message: None }),
+            Err(e) => return Err(RSolrError::Network { source: e }),
         };
 
         match http_response.status() {
@@ -301,18 +303,13 @@ impl<'a> Client<'a> {
                     }
                 }
             },
-            StatusCode::NOT_FOUND => Err(RSolrError { source: None, status: Some(StatusCode::NOT_FOUND), message: None }),
+            StatusCode::NOT_FOUND => Err(RSolrError::NotFound),
             other_status => {
                 let body_text = http_response.text().unwrap();
                 match serde_json::from_str::<Value>(&body_text) {
-                    Ok(r) => Err(RSolrError { source: None, status: Some(other_status), message: Some(r["error"]["msg"].as_str().unwrap().to_owned()) }),
+                    Ok(r) => Err(RSolrError::Syntax(r["error"]["msg"].as_str().unwrap().to_owned())),
                     Err(e) => {
-                        Err(
-                            RSolrError {
-                                source: Some(Box::new(e)),
-                                status: Some(other_status),
-                                message: Some(body_text)
-                            })
+                        Err( RSolrError::Other { source: Box::new(e), status: other_status, body_text })
                     }
                 }
             }
@@ -323,7 +320,7 @@ impl<'a> Client<'a> {
         match self.response.clone() {
             Some(v) => match serde_json::from_value(v) {
                 Ok(response) => Ok(response),
-                Err(e) => Err(RSolrError{ source: Some(Box::new(e)), status: None, message: Some("Cannot deserialize response into object".to_owned()) })
+                Err(e) => Err(RSolrError::Serialization(e.to_string()) )
             },
             _ => Ok(SolrResponse::default())
         }
@@ -395,7 +392,6 @@ mod tests {
     use mockall::lazy_static;
     use mockall::predicate::eq;
     use serde_json::json;
-    use crate::error;
 
     lazy_static! {
         static ref MTX: Mutex<()> = Mutex::new(());
@@ -669,9 +665,8 @@ mod tests {
             .run();
         assert!(result.is_err());
         let error = result.err().expect("No Error");
-        assert_eq!(error.status().unwrap(), StatusCode::INTERNAL_SERVER_ERROR);
-        assert_eq!(error.message().unwrap(), "okapi");
-        assert!(matches!(error.kind(), error::ErrorKind::Other));
+        assert!(matches!(error, RSolrError::Syntax(..) ));
+        assert_eq!(format!("{:?}", error), "Syntax(\"okapi\")");
     }
 
     #[test]
@@ -690,11 +685,9 @@ mod tests {
             let result = client
             .select("bad: query")
             .run();
-        assert!(result.is_err());
         let error = result.err().expect("No Error");
-        assert_eq!(error.status().unwrap(), StatusCode::INTERNAL_SERVER_ERROR);
-        assert_eq!(error.message().unwrap(), "some unparseable thing");
-        assert!(matches!(error.kind(), error::ErrorKind::Other));
+        assert!(matches!(error, RSolrError::Other {status: StatusCode::INTERNAL_SERVER_ERROR, ..} ));
+        assert!(format!("{:?}", error).contains("some unparseable thing"));
     }
 
     #[test]
@@ -716,9 +709,8 @@ mod tests {
             .run();
         assert!(result.is_err());
         let error = result.err().expect("No Error");
-        assert_eq!(error.status().unwrap(), StatusCode::INTERNAL_SERVER_ERROR);
-        assert_eq!(error.message().unwrap(), "okapi");
-        assert!(matches!(error.kind(), error::ErrorKind::Other));
+        assert!(matches!(error, RSolrError::Syntax(..) ));
+        assert_eq!(format!("{:?}", error), "Syntax(\"okapi\")");
     }
 
     #[test]
@@ -740,9 +732,8 @@ mod tests {
             .run();
         assert!(result.is_err());
         let error = result.err().expect("No Error");
-        assert_eq!(error.status().unwrap(), StatusCode::INTERNAL_SERVER_ERROR);
-        assert_eq!(error.message().unwrap(), "some unparseable thing");
-        assert!(matches!(error.kind(), error::ErrorKind::Other));
+        assert!(matches!(error, RSolrError::Other {status: StatusCode::INTERNAL_SERVER_ERROR, ..} ));
+        assert!(format!("{:?}", error).contains("some unparseable thing"));
     }
 
     #[test]
@@ -764,9 +755,8 @@ mod tests {
             .run();
         assert!(result.is_err());
         let error = result.err().expect("No Error");
-        assert_eq!(error.status().unwrap(), StatusCode::INTERNAL_SERVER_ERROR);
-        assert_eq!(error.message().unwrap(), "okapi");
-        assert!(matches!(error.kind(), error::ErrorKind::Other));
+        assert!(matches!(error, RSolrError::Syntax(..) ));
+        assert_eq!(format!("{:?}", error), "Syntax(\"okapi\")");
     }
 
     #[test]
@@ -787,9 +777,8 @@ mod tests {
             .run();
         assert!(result.is_err());
         let error = result.err().expect("No Error");
-        assert_eq!(error.status().unwrap(), StatusCode::INTERNAL_SERVER_ERROR);
-        assert_eq!(error.message().unwrap(), "some unparseable thing");
-        assert!(matches!(error.kind(), error::ErrorKind::Other));
+        assert!(matches!(error, RSolrError::Other {status: StatusCode::INTERNAL_SERVER_ERROR, ..} ));
+        assert!(format!("{:?}", error).contains("some unparseable thing"));
     }
 
     #[test]
