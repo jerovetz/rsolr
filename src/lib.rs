@@ -113,27 +113,29 @@
 //! }
 //! ```
 
+use std::ops::Deref;
+
+use http::StatusCode;
+use mockall_double::double;
+use regex::Regex;
+use serde::{Deserialize, Serialize};
+use serde_json::{json, Value};
+use url;
+use url::Url;
+
+#[double]
+use http_client::HttpClient;
+
+use crate::cursor::Cursor;
+use crate::error::RSolrError;
+use crate::solr_response::SolrResponse;
+
 pub mod error;
 pub mod solr_response;
 pub mod query;
 pub mod cursor;
 mod facet_fields;
 mod http_client;
-
-use std::ops::Deref;
-use serde::{Deserialize, Serialize};
-use http::StatusCode;
-use mockall_double::double;
-use regex::Regex;
-use url;
-use serde_json::{json, Value};
-use url::Url;
-
-#[double]
-use http_client::HttpClient;
-use crate::cursor::Cursor;
-use crate::error::RSolrError;
-use crate::solr_response::SolrResponse;
 
 /// The Payload defines the request method. Body and Empty sets method to POST, None uses GET.
 #[derive(Clone, Debug)]
@@ -384,12 +386,13 @@ impl<'a> Client<'a> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-
     use std::sync::{Mutex, MutexGuard};
+
     use mockall::lazy_static;
     use mockall::predicate::eq;
     use serde_json::json;
+
+    use super::*;
 
     lazy_static! {
         static ref MTX: Mutex<()> = Mutex::new(());
@@ -401,6 +404,20 @@ mod tests {
             Err(poisoned) => poisoned.into_inner(),
         }
     }
+
+    fn setup_get_mock(url: &'static str, status_code: u16, body: &'static str) -> HttpClient {
+        let mut mock = HttpClient::default();
+        mock.expect_get()
+            .with(eq(url))
+            .returning(move |_| Ok(
+                reqwest::blocking::Response::from(http::response::Builder::new()
+                    .status(status_code)
+                    .body(body)
+                    .unwrap()))
+            );
+        mock
+    }
+
 
     #[test]
     fn build_a_url_from_parameters() {
@@ -511,15 +528,7 @@ mod tests {
     #[test]
     fn run_handles_facet_fields() {
         let _m = get_lock(&MTX);
-
-        let ctx = HttpClient::new_context();
-        ctx.expect().returning(|| {
-            let mut mock = HttpClient::default();
-            mock.expect_get()
-                .with(eq("http://localhost:8983/solr/default/select?q=*%3A*&facet=on&facet_field=exists"))
-                .returning(|_| Ok(reqwest::blocking::Response::from(http::response::Builder::new()
-                    .status(200)
-                    .body(r#"{
+        let body = r#"{
                             "response": {"numFound": 1,"numFoundExact": true,"start": 0,"docs": [{"success": true }]},
                             "facet_counts": {
                                 "facet_queries": {},
@@ -532,9 +541,10 @@ mod tests {
                                 "facet_intervals":{},
                                 "facet_heatmaps":{}
                             }
-                        }"#)
-                    .unwrap())));
-            mock
+                        }"#;
+        let ctx = HttpClient::new_context();
+        ctx.expect().returning(|| {
+            setup_get_mock("http://localhost:8983/solr/default/select?q=*%3A*&facet=on&facet_field=exists", 200, body)
         });
 
         let collection = "default";
@@ -553,15 +563,7 @@ mod tests {
     #[test]
     fn run_handles_facet_query_and_returns_unimplemented_facets_in_raw() {
         let _m = get_lock(&MTX);
-
-        let ctx = HttpClient::new_context();
-        ctx.expect().returning(|| {
-            let mut mock = HttpClient::default();
-            mock.expect_get()
-                .with(eq("http://localhost:8983/solr/default/select?q=*%3A*&facet=on&facet_query=anything%3A+*"))
-                .returning(|_| Ok(reqwest::blocking::Response::from(http::response::Builder::new()
-                    .status(200)
-                    .body(r#"{
+        let body = r#"{
                             "response": {"numFound": 1,"numFoundExact": true,"start": 0,"docs": [{"success": true }]},
                             "facet_counts": {
                                 "facet_queries": {
@@ -572,10 +574,12 @@ mod tests {
                                 "facet_intervals":"interesting intervals",
                                 "facet_heatmaps":"interesting heatmaps"
                             }
-                        }"#)
-                    .unwrap())));
-            mock
-        });
+                        }"#;
+
+        let ctx = HttpClient::new_context();
+        ctx.expect().returning(||
+           setup_get_mock("http://localhost:8983/solr/default/select?q=*%3A*&facet=on&facet_query=anything%3A+*", 200, body)
+        );
 
         let collection = "default";
         let host = "http://localhost:8983";
@@ -598,16 +602,11 @@ mod tests {
     fn run_deserializes_remaining_fields_into_raw() {
         let _m = get_lock(&MTX);
         let ctx = HttpClient::new_context();
-        ctx.expect().returning(|| {
-            let mut mock = HttpClient::default();
-            mock.expect_get()
-                .with(eq("http://localhost:8983/solr/default/select?q=*%3A*"))
-                .returning(|_| Ok(reqwest::blocking::Response::from(http::response::Builder::new()
-                    .status(200)
-                    .body(r#"{"response": {"numFound": 1,"numFoundExact": true,"start": 0,"docs": [{"success": true }]},"anything":"other fields"}"#)
-                    .unwrap())));
-            mock
-        });
+        let body = r#"{"response": {"numFound": 1,"numFoundExact": true,"start": 0,"docs": [{"success": true }]},"anything":"other fields"}"#;
+
+        ctx.expect().returning(||
+            setup_get_mock("http://localhost:8983/solr/default/select?q=*%3A*", 200, body)
+        );
         let mut client = Client::new("http://localhost:8983", "default");
         let result = client
             .select("*:*")
@@ -651,7 +650,9 @@ mod tests {
 
         ctx.expect().returning(|| {
             let mut mock = HttpClient::default();
-            mock.expect_get().returning(|_| Ok(reqwest::blocking::Response::from(http::response::Builder::new().status(500).body(r#"{"error": {"code": 500, "msg": "okapi"}}"#).unwrap())));
+            mock.expect_get()
+                .returning(|_| Ok(reqwest::blocking::Response::from(
+                    http::response::Builder::new().status(500).body(r#"{"error": {"code": 500, "msg": "okapi"}}"#).unwrap())));
             mock
         });
 
