@@ -147,7 +147,7 @@ fn create_with_auto_commit_inserts_document() {
     let mut client = Client::new(base_url, collection);
     client
         .auto_commit()
-        .create(document)
+        .upload_json(document)
         .run()
         .ok();
 
@@ -170,7 +170,7 @@ fn create_inserts_any_serializable_document() {
     let mut client = Client::new(base_url, collection);
     client
         .auto_commit()
-        .create(document)
+        .upload_json(document)
         .run()
         .ok();
 
@@ -191,7 +191,7 @@ fn create_without_auto_commit_uploads_document_and_index_on_separated_commit_res
     let mut client = Client::new(host,collection);
 
     client
-        .create(document)
+        .upload_json(document)
         .run()
         .ok();
 
@@ -215,7 +215,7 @@ fn create_responds_rsolr_error_with_embedded_network_error() {
     let host = "http://not_existing_host:8983";
     let mut client = Client::new(host, collection);
     let result = client
-        .create(json!({"anything": "anything"}))
+        .upload_json(json!({"anything": "anything"}))
         .run();
     assert!(result.is_err());
     let error = result.err().expect("No Error");
@@ -230,7 +230,7 @@ fn create_responds_rsolr_error_with_embedded_no_collection_error() {
     let host = "http://localhost:8983";
     let mut client = Client::new(host, collection);
     let result = client
-        .create(json!({"anything": "anything"}))
+        .upload_json(json!({"anything": "anything"}))
         .run();
 
     assert!(result.is_err());
@@ -247,7 +247,7 @@ fn delete_deletes_docs() {
     let mut client = Client::new(host, collection);
     let _ =  client
         .auto_commit()
-        .create(json!({"okapi": "another egerke"}))
+        .upload_json(json!({"okapi": "another egerke"}))
         .run();
 
     let result = client
@@ -270,8 +270,8 @@ fn delete_deletes_docs_specified_by_query() {
     let host = "http://localhost:8983";
     empty_default_collection(host).ok();
     let mut client = Client::new(host, collection);
-    client.create(json!({"okapi": "another egerke"})).run().ok();
-    client.create(json!({"okapi2": "egerke"})).run().ok();
+    client.upload_json(json!({"okapi": "another egerke"})).run().ok();
+    client.upload_json(json!({"okapi2": "egerke"})).run().ok();
     client.commit().run().ok();
 
     let result = client
@@ -293,8 +293,8 @@ fn without_autocommit_delete_deletes_docs_after_commit_specified_by_query() {
     let host = "http://localhost:8983";
     empty_default_collection(host).ok();
     let mut client = Client::new(host, collection);
-    client.create(json!({"okapi": "another egerke"})).run().ok();
-    client.create(json!({"okapi2": "egerke"})).run().ok();
+    client.upload_json(json!({"okapi": "another egerke"})).run().ok();
+    client.upload_json(json!({"okapi2": "egerke"})).run().ok();
     client.commit().run().ok();
 
     client.delete("okapi: another egerke").run().ok();
@@ -355,7 +355,7 @@ fn cursor_used_to_fetch_data() {
     fn add<P: Serialize + Clone>(client: &mut Client, document: P) {
         client
             .auto_commit()
-            .create(document)
+            .upload_json(document)
             .run()
             .ok();
     }

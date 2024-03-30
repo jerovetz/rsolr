@@ -30,9 +30,9 @@
 //! }
 //! ```
 //!
-//! ## Create
+//! ## Upload
 //!
-//! You can use types with implemented `Clone` and `Serialize`.
+//! You should use types with implemented `Clone` and `Serialize`. You can also use the deprecated ```create``` method.
 //!
 //! ```rust
 //!
@@ -45,10 +45,10 @@
 //!     field: Vec<String>
 //! }
 //!
-//! fn create() {
+//! fn upload() {
 //!     let document = SimpleDocument { field: vec!("nice".to_string(), "document".to_string()) };
 //!     Client::new("http://solr:8983", "collection")
-//!         .create(document)
+//!         .upload_json(document)
 //!         .run().expect("request failed.");
 //! }
 //! ```
@@ -333,8 +333,12 @@ impl<'a> Client<'a> {
             .query(query)
     }
 
-    /// Shorthand for create.
     pub fn create<P: Serialize + Clone>(&mut self, document: P) -> &mut Self {
+        self.upload_json(document)
+    }
+
+    /// Shorthand for create.
+    pub fn upload_json<P: Serialize + Clone>(&mut self, document: P) -> &mut Self {
         self
             .request_handler(RequestHandlers::CREATE)
             .set_document::<P>(document)
@@ -704,7 +708,7 @@ mod tests {
         let mut client = Client::new(host, collection);
         let result = client
             .auto_commit()
-            .create(json!({"anything": "anything"}))
+            .upload_json(json!({"anything": "anything"}))
             .run();
         assert!(result.is_err());
         let error = result.err().expect("No Error");
@@ -727,7 +731,7 @@ mod tests {
         let mut client  = Client::new(host, collection);
         let result = client
             .auto_commit()
-            .create(json!({"anything": "anything"}))
+            .upload_json(json!({"anything": "anything"}))
             .run();
         assert!(result.is_err());
         let error = result.err().expect("No Error");
