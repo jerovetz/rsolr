@@ -137,7 +137,7 @@ fn query_responds_rsolr_error_with_solr_problem_if_query_is_bad() {
 }
 
 #[test]
-fn create_with_auto_commit_inserts_document() {
+fn upload_json_with_auto_commit_inserts_document() {
     let _m = get_lock(&MTX);
     let collection = "default";
     let base_url = "http://localhost:8983";
@@ -159,7 +159,7 @@ fn create_with_auto_commit_inserts_document() {
 }
 
 #[test]
-fn create_inserts_any_serializable_document() {
+fn upload_json_inserts_any_serializable_document() {
     let _m = get_lock(&MTX);
     let collection = "default";
     let base_url = "http://localhost:8983";
@@ -181,7 +181,7 @@ fn create_inserts_any_serializable_document() {
 }
 
 #[test]
-fn create_without_auto_commit_uploads_document_and_index_on_separated_commit_responds_nothing() {
+fn upload_json_without_auto_commit_uploads_document_and_index_on_separated_commit_responds_nothing() {
     let _m = get_lock(&MTX);
     let collection = "default";
     let host = "http://localhost:8983";
@@ -209,7 +209,7 @@ fn create_without_auto_commit_uploads_document_and_index_on_separated_commit_res
 }
 
 #[test]
-fn create_responds_rsolr_error_with_embedded_network_error() {
+fn upload_json_responds_rsolr_error_with_embedded_network_error() {
     let _m = get_lock(&MTX);
     let collection = "default";
     let host = "http://not_existing_host:8983";
@@ -224,7 +224,7 @@ fn create_responds_rsolr_error_with_embedded_network_error() {
 }
 
 #[test]
-fn create_responds_rsolr_error_with_embedded_no_collection_error() {
+fn upload_json_responds_rsolr_error_with_embedded_no_collection_error() {
     let _m = get_lock(&MTX);
     let collection = "not_existing_collection";
     let host = "http://localhost:8983";
