@@ -1,6 +1,7 @@
 use http::header::CONTENT_TYPE;
-use reqwest::blocking::{Client as ReqwestClient, Response };
+use reqwest::blocking::{Body, Client as ReqwestClient, Response};
 use reqwest::Error;
+use cloneable_file::CloneableFile;
 
 #[cfg(test)]
 use mockall::automock;
@@ -26,7 +27,7 @@ impl HttpClient {
     }
 
     #[allow(dead_code)]
-    pub fn post<'a>(&self, query : &str, body: Option<&'a Value>) -> Result<Response, Error> {
+    pub fn post_json<'a>(&self, query : &str, body: Option<&'a Value>) -> Result<Response, Error> {
         let request = self.reqwest_client.post(query);
         match body {
             Some(body) => request
@@ -34,6 +35,17 @@ impl HttpClient {
                 .json::<Value>(body).send(),
             None => request.send()
         }
+    }
+
+    #[allow(dead_code)]
+    pub fn post_file_reader<'a>(&self, query : &str, file: CloneableFile) -> Result<Response, Error> {
+        let length = file.metadata().unwrap().len();
+        let body = Body::sized(file, length);
+        let request = self.reqwest_client.post(query);
+        request
+            .header(CONTENT_TYPE, "text/csv")
+            .body(body)
+            .send()
     }
 }
 

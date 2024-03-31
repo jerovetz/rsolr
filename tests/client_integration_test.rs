@@ -2,6 +2,7 @@ use rsolr::{Client};
 use reqwest::blocking::Client as HttpClient;
 use reqwest::header::CONTENT_TYPE;
 use std::fmt::Debug;
+use std::fs::File;
 use std::sync::{Mutex, MutexGuard};
 use mockall::lazy_static;
 use serde::{Serialize, Deserialize};
@@ -236,6 +237,29 @@ fn upload_json_responds_rsolr_error_with_embedded_no_collection_error() {
     assert!(result.is_err());
     let error = result.err().expect("No Error");
     assert!(matches!(error, RSolrError::NotFound));
+}
+
+#[test]
+fn upload_csv_uploads_csv_lines_as_documents() {
+    let _m = get_lock(&MTX);
+
+    let collection = "default";
+    let host = "http://localhost:8983";
+    empty_default_collection(host).ok();
+    let mut client = Client::new(host, collection);
+
+    let file = File::open("./tests/test.csv").unwrap();
+
+    let result = client
+        .auto_commit()
+        .upload_csv(file)
+        .run();
+    assert!(result.is_ok());
+
+    client.select("*:*").run().ok();
+    let solr_response = client.get_response::<Value>().unwrap();
+    assert_eq!(solr_response.response.unwrap().numFound, 151);
+    empty_default_collection(host).ok();
 }
 
 #[test]

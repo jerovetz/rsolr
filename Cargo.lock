@@ -90,6 +90,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "baf1de4339761588bc0619e3cbc0120ee582ebb74b53b4efbf79117bd2da40fd"
 
 [[package]]
+name = "cloneable-file"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a65a2f832606a85d1ae63c167b28378359565f5c6b67793d96597d7e2bccd251"
+
+[[package]]
 name = "core-foundation"
 version = "0.9.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -731,6 +737,7 @@ dependencies = [
 name = "rsolr"
 version = "0.3.1"
 dependencies = [
+ "cloneable-file",
  "http",
  "mockall",
  "mockall_double",

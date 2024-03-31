@@ -113,7 +113,9 @@
 //! }
 //! ```
 
+use std::fs::File;
 use std::ops::Deref;
+use cloneable_file::CloneableFile;
 
 use http::StatusCode;
 use mockall_double::double;
@@ -140,7 +142,8 @@ mod http_client;
 /// The Payload defines the request method. Body and Empty sets method to POST, None uses GET.
 #[derive(Clone, Debug)]
 pub enum Payload {
-    Body(Value),
+    JsonBody(Value),
+    CsvBody(CloneableFile),
     Empty,
     None
 }
@@ -151,6 +154,7 @@ pub struct RequestHandlers;
 impl RequestHandlers {
     pub const QUERY: &'static str = "select";
     pub const UPLOAD_JSON: &'static str = "update/json/docs";
+    pub const UPLOAD_CSV: &'static str = "update/csv";
     pub const DELETE: &'static str = "update";
 }
 
@@ -261,7 +265,7 @@ impl<'a> Client<'a> {
 
     /// Sets the payload of the request, only JSON is supported.
     pub fn set_json_document<P : Clone + Serialize>(&mut self, document: P) -> &mut Self {
-        self.payload(Payload::Body(serde_json::to_value::<P>(document).unwrap()))
+        self.payload(Payload::JsonBody(serde_json::to_value::<P>(document).unwrap()))
     }
 
     /// Empties the payload, it requires for POST requests (i.e. Solr delete or commit).
@@ -277,9 +281,10 @@ impl<'a> Client<'a> {
     /// Runs the prepared request and fetches response to the type specified. Responds Result which contains SolrResult, the response part of Solr response.
     pub fn run(&mut self) -> Result<Option<Cursor>, RSolrError> {
         let http_result = match &self.payload {
-            Payload::Body(body) => HttpClient::new().post(self.url_str(), Some(body)),
-            Payload::Empty => HttpClient::new().post(self.url_str(), None),
-            Payload::None => HttpClient::new().get(self.url_str())
+            Payload::JsonBody(body) => HttpClient::new().post_json(self.url_str(), Some(body)),
+            Payload::Empty => HttpClient::new().post_json(self.url_str(), None),
+            Payload::None => HttpClient::new().get(self.url_str()),
+            Payload::CsvBody(file) => HttpClient::new().post_file_reader(self.url_str(), file.to_owned())
         };
 
         let http_response = match http_result {
@@ -343,6 +348,18 @@ impl<'a> Client<'a> {
             .request_handler(RequestHandlers::UPLOAD_JSON)
             .set_json_document::<P>(document)
     }
+
+    pub fn upload_csv(&mut self, file: File) -> &mut Self {
+        self
+            .request_handler(RequestHandlers::UPLOAD_CSV)
+            .set_csv_file(file)
+    }
+
+    pub fn set_csv_file(&mut self, file: File) -> &mut Self {
+        let cloneable_file = CloneableFile::from(file);
+        self.payload(Payload::CsvBody(cloneable_file))
+    }
+
 
     /// Shorthand for delete.
     pub fn delete(&mut self, query: &str) -> &mut Self {
@@ -626,7 +643,7 @@ mod tests {
         let ctx = HttpClient::new_context();
         ctx.expect().returning(|| {
             let mut mock = HttpClient::default();
-            mock.expect_post()
+            mock.expect_post_json()
                 .withf(| url, body | url == "http://localhost:8983/solr/default/update%2Fjson%2Fdocs?commit=true" && *body == Some(&json!({ "this is": "a document"})) )
                 .returning(|_, _| Ok(reqwest::blocking::Response::from(http::response::Builder::new()
                     .status(200)
@@ -699,7 +716,7 @@ mod tests {
         let ctx = HttpClient::new_context();
         ctx.expect().returning(|| {
             let mut mock = HttpClient::default();
-            mock.expect_post().returning(|_, _| Ok(reqwest::blocking::Response::from(http::response::Builder::new().status(500).body(r#"{"error": {"code": 500, "msg": "okapi"}}"#).unwrap())));
+            mock.expect_post_json().returning(|_, _| Ok(reqwest::blocking::Response::from(http::response::Builder::new().status(500).body(r#"{"error": {"code": 500, "msg": "okapi"}}"#).unwrap())));
             mock
         });
 
@@ -722,7 +739,7 @@ mod tests {
         let ctx = HttpClient::new_context();
         ctx.expect().returning(|| {
             let mut mock = HttpClient::default();
-            mock.expect_post().returning(|_, _| Ok(reqwest::blocking::Response::from(http::response::Builder::new().status(500).body(r#"some unparseable thing"#).unwrap())));
+            mock.expect_post_json().returning(|_, _| Ok(reqwest::blocking::Response::from(http::response::Builder::new().status(500).body(r#"some unparseable thing"#).unwrap())));
             mock
         });
 
@@ -745,7 +762,7 @@ mod tests {
         let ctx = HttpClient::new_context();
         ctx.expect().returning(|| {
             let mut mock = HttpClient::default();
-            mock.expect_post().returning(|_, _| Ok(reqwest::blocking::Response::from(http::response::Builder::new().status(500).body(r#"{"error": {"code": 500, "msg": "okapi"}}"#).unwrap())));
+            mock.expect_post_json().returning(|_, _| Ok(reqwest::blocking::Response::from(http::response::Builder::new().status(500).body(r#"{"error": {"code": 500, "msg": "okapi"}}"#).unwrap())));
             mock
         });
 
@@ -768,7 +785,7 @@ mod tests {
         let ctx = HttpClient::new_context();
         ctx.expect().returning(|| {
             let mut mock = HttpClient::default();
-            mock.expect_post().returning(|_, _| Ok(reqwest::blocking::Response::from(http::response::Builder::new().status(500).body(r#"some unparseable thing"#).unwrap())));
+            mock.expect_post_json().returning(|_, _| Ok(reqwest::blocking::Response::from(http::response::Builder::new().status(500).body(r#"some unparseable thing"#).unwrap())));
             mock
         });
 
