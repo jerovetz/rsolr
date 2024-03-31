@@ -150,7 +150,7 @@ pub struct RequestHandlers;
 
 impl RequestHandlers {
     pub const QUERY: &'static str = "select";
-    pub const CREATE: &'static str = "update/json/docs";
+    pub const UPLOAD_JSON: &'static str = "update/json/docs";
     pub const DELETE: &'static str = "update";
 }
 
@@ -260,7 +260,7 @@ impl<'a> Client<'a> {
     }
 
     /// Sets the payload of the request, only JSON is supported.
-    pub fn set_document<P : Clone + Serialize>(&mut self, document: P) -> &mut Self {
+    pub fn set_json_document<P : Clone + Serialize>(&mut self, document: P) -> &mut Self {
         self.payload(Payload::Body(serde_json::to_value::<P>(document).unwrap()))
     }
 
@@ -276,7 +276,7 @@ impl<'a> Client<'a> {
 
     /// Runs the prepared request and fetches response to the type specified. Responds Result which contains SolrResult, the response part of Solr response.
     pub fn run(&mut self) -> Result<Option<Cursor>, RSolrError> {
-        let http_result = match self.payload.clone() {
+        let http_result = match &self.payload {
             Payload::Body(body) => HttpClient::new().post(self.url_str(), Some(body)),
             Payload::Empty => HttpClient::new().post(self.url_str(), None),
             Payload::None => HttpClient::new().get(self.url_str())
@@ -340,8 +340,8 @@ impl<'a> Client<'a> {
     /// Shorthand for create.
     pub fn upload_json<P: Serialize + Clone>(&mut self, document: P) -> &mut Self {
         self
-            .request_handler(RequestHandlers::CREATE)
-            .set_document::<P>(document)
+            .request_handler(RequestHandlers::UPLOAD_JSON)
+            .set_json_document::<P>(document)
     }
 
     /// Shorthand for delete.
@@ -352,7 +352,7 @@ impl<'a> Client<'a> {
 
         self
             .request_handler(RequestHandlers::DELETE)
-            .set_document(delete_payload)
+            .set_json_document(delete_payload)
     }
 
     /// Shorthand for direct commit.
@@ -627,7 +627,7 @@ mod tests {
         ctx.expect().returning(|| {
             let mut mock = HttpClient::default();
             mock.expect_post()
-                .withf(| url, body | url == "http://localhost:8983/solr/default/update%2Fjson%2Fdocs?commit=true" && *body == Some(json!({ "this is": "a document"})) )
+                .withf(| url, body | url == "http://localhost:8983/solr/default/update%2Fjson%2Fdocs?commit=true" && *body == Some(&json!({ "this is": "a document"})) )
                 .returning(|_, _| Ok(reqwest::blocking::Response::from(http::response::Builder::new()
                     .status(200)
                     .body(r#"{"response": {"numFound": 1,"numFoundExact": true,"start": 0,"docs": [{"success": true }]}}"#)
@@ -641,7 +641,7 @@ mod tests {
         let result = command
             .request_handler("update/json/docs")
             .auto_commit()
-            .set_document(json!({ "this is": "a document"}))
+            .set_json_document(json!({ "this is": "a document"}))
             .run();
         assert!(result.is_ok());
         assert_eq!(command.get_response::<Value>().unwrap().response.unwrap().docs[0]["success"], true);
