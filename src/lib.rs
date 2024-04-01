@@ -30,9 +30,9 @@
 //! }
 //! ```
 //!
-//! ## Upload
+//! ## Upload JSON doc(s)
 //!
-//! You should use types with implemented `Clone` and `Serialize`. You can also use the deprecated ```create``` method.
+//! You should use types with implemented `Clone` and `Serialize`.
 //!
 //! ```rust
 //!
@@ -169,7 +169,7 @@ pub struct Client<'a> {
 
 impl<'a> Client<'a> {
 
-    pub fn new(base_url: &'a str, collection: &'a str) -> Self {
+    pub fn new(base_url: &str, collection: &'a str) -> Self {
         let url = Url::parse(base_url).unwrap();
         Client { request_handler: "", url, payload: Payload::None, collection, response: None }
     }
@@ -235,10 +235,12 @@ impl<'a> Client<'a> {
         self
     }
 
+    /// Shorthand for 'sort' parameter.
     pub fn sort(&mut self, sort: &str) -> &mut Self {
         self.add_query_param("sort", sort)
     }
 
+    /// Request cursor from Solr instance.
     pub fn cursor(&mut self) -> &mut Self {
         self.add_query_param("cursorMark", "*")
     }
@@ -278,7 +280,7 @@ impl<'a> Client<'a> {
         self.payload(Payload::None)
     }
 
-    /// Runs the prepared request and fetches response to the type specified. Responds Result which contains SolrResult, the response part of Solr response.
+    /// Runs the prepared request and fetches response to the type specified. Responds a Result which contains SolrResult, the response part of Solr response.
     pub fn run(&mut self) -> Result<Option<Cursor>, RSolrError> {
         let http_result = match &self.payload {
             Payload::JsonBody(body) => HttpClient::new().post_json(self.url_str(), Some(body)),
@@ -321,6 +323,7 @@ impl<'a> Client<'a> {
         }
     }
 
+    /// Get Solr response.
     pub fn get_response<T: for<'de> Deserialize<'de> + Clone + Default>(&self) -> Result<SolrResponse<T>, RSolrError>{
         match &self.response {
             Some(v) => match serde_json::from_value(v.to_owned()) {
@@ -338,23 +341,27 @@ impl<'a> Client<'a> {
             .query(query)
     }
 
+    /// Alias for upload_json. It's deprecated.
+    #[deprecated(since = "0.3.2", note = "Use upload_json instead.")]
     pub fn create<P: Serialize + Clone>(&mut self, document: P) -> &mut Self {
         self.upload_json(document)
     }
 
-    /// Shorthand for create.
+    /// Shorthand for uploading JSON doc(s).
     pub fn upload_json<P: Serialize + Clone>(&mut self, document: P) -> &mut Self {
         self
             .request_handler(RequestHandlers::UPLOAD_JSON)
             .set_json_document::<P>(document)
     }
 
+    /// Shorthand for uploading a CSV file.
     pub fn upload_csv(&mut self, file: File) -> &mut Self {
         self
             .request_handler(RequestHandlers::UPLOAD_CSV)
             .set_csv_file(file)
     }
 
+    /// Set a CSV file as payload.
     pub fn set_csv_file(&mut self, file: File) -> &mut Self {
         let cloneable_file = CloneableFile::from(file);
         self.payload(Payload::CsvBody(cloneable_file))
