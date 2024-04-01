@@ -322,8 +322,8 @@ impl<'a> Client<'a> {
     }
 
     pub fn get_response<T: for<'de> Deserialize<'de> + Clone + Default>(&self) -> Result<SolrResponse<T>, RSolrError>{
-        match self.response.clone() {
-            Some(v) => match serde_json::from_value(v) {
+        match &self.response {
+            Some(v) => match serde_json::from_value(v.to_owned()) {
                 Ok(response) => Ok(response),
                 Err(e) => Err(RSolrError::Serialization(e.to_string()) )
             },
