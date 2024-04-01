@@ -28,9 +28,9 @@ It uses the blocking version of the reqwest http client.
  }
  ```
 
- ## Create
+ ## Upload JSON doc(s)
 
- You can use types with implemented `Clone` and `Serialize`.
+ You should use types with implemented `Clone` and `Serialize`.
 
  ```rust
 
@@ -43,11 +43,11 @@ It uses the blocking version of the reqwest http client.
      field: Vec<String>
  }
 
- fn create() {
+ fn upload() {
      let document = SimpleDocument { field: vec!("nice".to_string(), "document".to_string()) };
      Client::new("http://solr:8983", "collection")
-         .create(document)
-         .run::<Value>().expect("panic, request failed.");
+         .upload_json(document)
+         .run().expect("request failed.");
  }
  ```
  ## Delete
